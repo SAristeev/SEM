@@ -1,5 +1,6 @@
 #include <fc.h>
 #include <gll.h>
+#include <parametric_hex.h>
 
 #include <fstream>
 #include <algorithm> 
@@ -8,6 +9,7 @@
 #include <json/json.hpp>
 
 namespace pre {
+	static local_indexing loc;
 	void fc::add_spectral_elem(int elem_id, int& offset, int& realoffset, const std::vector<int>& elems_tmp, const std::map<int, int>& map_node_numeration)
 	{
 		int order = mesh.order[elem_id];
@@ -46,34 +48,23 @@ namespace pre {
 						}
 					}
 				};
-
-			add_edge(0, 1);
-			add_edge(1, 2);
-			add_edge(3, 2);
-			add_edge(0, 3);
-
-			add_edge(4, 5);
-			add_edge(5, 6);
-			add_edge(7, 6);
-			add_edge(4, 7);
-
-			add_edge(0, 4);
-			add_edge(1, 5);
-			add_edge(2, 6);
-			add_edge(3, 7);
+			for (auto& e : loc.edges) 
+			{
+				add_edge(e[0], e[1]);
+			}
 		}
 		// faces
-		{
-			//  y
-			//	^	 lu    ru
-			//	|	 2. . .3
-			//	|	   .   
-			//	|	     . 
-			//	|	 0. . .1
-			//  |    ld     rd
-			//  +-------------->x
+		{	
 			auto add_face = [&](int ld_indx, int rd_indx, int lu_indx, int ru_indx)
 				{
+					//  y
+					//	^	 lu    ru
+					//	|	 2. . .3
+					//	|	   .   
+					//	|	     . 
+					//	|	 0. . .1
+					//  |    ld     rd
+					//  +-------------->x
 					vec3 ld = mesh.nodes[map_node_numeration.at(elems_tmp[ld_indx + offset])];
 					vec3 rd = mesh.nodes[map_node_numeration.at(elems_tmp[rd_indx + offset])];
 					vec3 lu = mesh.nodes[map_node_numeration.at(elems_tmp[lu_indx + offset])];
@@ -107,14 +98,10 @@ namespace pre {
 					}
 				};
 
-			add_face(0, 3, 4, 7);
-			add_face(1, 2, 5, 6);
-
-			add_face(0, 1, 4, 5);
-			add_face(3, 2, 7, 6);
-
-			add_face(0, 1, 3, 2);
-			add_face(4, 5, 7, 6);
+			for (auto& f : loc.faces)
+			{
+				add_face(f[0], f[1], f[2], f[3]);
+			}
 
 		}
 		// volume
