@@ -1,42 +1,9 @@
+#include<unordered_map>
+#include<string>
 
-#include <tbb/tick_count.h>
-#include <tbb/parallel_for.h>
-
-
-
-#include <vtkActor.h>
-#include <vtkDataSetMapper.h>
-#include <vtkNamedColors.h>
-#include <vtkNew.h>
-#include <vtkProperty.h>
-#include <vtkRenderWindow.h>
-#include <vtkRenderWindowInteractor.h>
-#include <vtkRenderer.h>
-#include <vtkXMLUnstructuredGridReader.h>
-
-
-#include <vtkActor.h>
-#include <vtkCellArray.h>
-#include <vtkDataSetMapper.h>
-#include <vtkNamedColors.h>
-#include <vtkNew.h>
-#include <vtkProperty.h>
-#include <vtkRenderWindow.h>
-#include <vtkRenderWindowInteractor.h>
-#include <vtkRenderer.h>
-#include <vtkTetra.h>
-#include <vtkUnstructuredGrid.h>
-#include <vtkXMLUnstructuredGridReader.h>
-#include <vtkXMLUnstructuredGridWriter.h>
-
-#include <vtkDoubleArray.h>
-#include <vtkHigherOrderHexahedron.h>
-#include <vtkHigherOrderQuadrilateral.h>
-#include <vtkLagrangeQuadrilateral.h>
-#include <vtkLagrangeHexahedron.h>
-
-int main(int argc, char* argv[]) {
-    tbb::tick_count start = tbb::tick_count::now();
+#include<fc.h>
+using namespace pre;
+int main(int argc, char* argv[]) {    
     std::unordered_map<std::string, std::string>  parsed_params;//in the pair {key,param} param may be empty
 
     for (int pos = 1; pos < argc; ++pos) {
@@ -78,6 +45,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    fc fcase(FC_FileName);
 
     return 0;
 }
