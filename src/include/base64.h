@@ -6,6 +6,7 @@
 #include <string>
 #include <cmath>
 #include <span>
+
 namespace base64
 {
 	size_t esize(size_t data_size);

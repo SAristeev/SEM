@@ -5,10 +5,29 @@
 #include<Eigen/Core>
 #include<filesystem>
 #include<map>
+#include<set>
 
 namespace pre {
 
 	using vec3 = Eigen::Vector3d;
+
+	struct parametic_points
+	{
+		std::vector<vec3> v;
+		vec3 mid = { 0.5,0.5,0.5 };
+		parametic_points()
+		{
+			v.resize(8);
+			v[0] = { 0,0,0 };
+			v[1] = { 1,0,0 };
+			v[2] = { 1,1,0 };
+			v[3] = { 0,1,0 };
+			v[4] = { 0,0,1 };
+			v[5] = { 1,0,1 };
+			v[6] = { 1,1,1 };
+			v[7] = { 0,1,1 };
+		}
+	};
 
 	struct material_t
 	{
@@ -21,13 +40,22 @@ namespace pre {
 	};
 
 	struct UnstructedMesh {
-		std::vector<vec3> nodes;
+		// array of all points
+		std::vector<vec3>         nodes;
 		std::vector<int>          nids;
+
+		// connectivity analog
+		// contains node's id by elems
 		std::vector<int>          elems;
-		std::vector<int>          elemids;
+		// shifts of elems
 		std::vector<int>          elem_shifts;
-		std::vector<int>          order;
+
+		// elems parameters 
+		std::vector<int>          elemids;
 		std::vector<uint8_t>      elem_type;
+		std::vector<int>          order;
+		
+		//std::vector<std::pair<int, int>> elem_connectivity;
 
 		std::unordered_map<int, std::tuple<int, int, int>> hex_loc_indxs;
 	};
@@ -56,8 +84,8 @@ namespace pre {
 		std::vector<BC> loads;
 
 		fc(std::filesystem::path path);
-
-		void set_order();
+		
+		void add_spectral_elem(int elem_id, int& offset, int& realoffset, const std::vector<int>& elems_tmp, const std::map<int, int>& map_node_numeration);
 	};
 };
 #endif // __FC_H__

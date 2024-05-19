@@ -6,6 +6,7 @@
 #include <vtkNew.h>
 #include <vtkHexahedron.h>
 #include <vtkQuadraticHexahedron.h>
+#include <vtkLagrangeHexahedron.h>
 
 #include <vtkUnstructuredGrid.h>
 #include <vtkXMLUnstructuredGridWriter.h>
@@ -56,6 +57,22 @@ namespace post {
 					}
 					cellArray->InsertNextCell(hex);
 					offset += 20;
+				}
+				else 
+				{
+					type = VTK_LAGRANGE_HEXAHEDRON;
+					vtkNew<vtkLagrangeHexahedron> hex;
+					int nodes = mesh.order[elem_id] + 1;
+					int nodes3 = nodes * nodes * nodes;
+					
+					hex->GetPointIds()->SetNumberOfIds(nodes3);
+					for (int i = 0; i < nodes3; i++)
+					{
+						hex->GetPointIds()->SetId(i, mesh.elems[i + offset]);
+					}
+
+					cellArray->InsertNextCell(hex);
+					offset += nodes3;
 				}
 			}
 		}
