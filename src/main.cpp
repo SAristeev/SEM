@@ -1,8 +1,12 @@
+#include<fc.h>
+#include<export2vtk.h>
+
 #include<unordered_map>
 #include<string>
 
-#include<fc.h>
 using namespace pre;
+using namespace post;
+
 int main(int argc, char* argv[]) {    
     std::unordered_map<std::string, std::string>  parsed_params;//in the pair {key,param} param may be empty
 
@@ -46,7 +50,7 @@ int main(int argc, char* argv[]) {
     }
 
     fc fcase(FC_FileName);
-
+    export2vtk(fcase.mesh, VTU_FileName);
     return 0;
 }
 

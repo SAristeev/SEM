@@ -20,7 +20,7 @@ namespace pre {
 		double nu;
 	};
 
-	struct UnstructedMesh_HEX {
+	struct UnstructedMesh {
 		std::vector<vec3> nodes;
 		std::vector<int>          nids;
 		std::vector<int>          elems;
@@ -50,7 +50,7 @@ namespace pre {
 		std::vector<int> blocks;
 		std::vector<unsigned char> thresholds;
 
-		UnstructedMesh_HEX mesh;
+		UnstructedMesh mesh;
 
 		std::vector<BC> restraints;
 		std::vector<BC> loads;

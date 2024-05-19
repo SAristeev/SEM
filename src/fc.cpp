@@ -95,7 +95,6 @@ namespace pre {
 			{
 				// HEX (1st order)
 				mesh.elem_shifts[elem_ID] = offset;
-				mesh.elem_type[elem_ID] = VTK_HEXAHEDRON;
 				
 				for (int i = offset; i < offset + 8; i++)
 				{
@@ -107,15 +106,6 @@ namespace pre {
 			{
 				// HEX (2nd and higher order)
 				mesh.elem_shifts[elem_ID] = offset;
-				if (mesh.order[elem_ID] = 2)
-				{
-					mesh.elem_type[elem_ID] = VTK_QUADRATIC_HEXAHEDRON;
-				}
-				else 
-				{
-					mesh.elem_type[elem_ID] = VTK_LAGRANGE_HEXAHEDRON;
-				}
-
 				for (int i = offset; i < offset + 20; i++)
 				{
 					mesh.elems[i] = map_node_numeration[elems_tmp[i]];
