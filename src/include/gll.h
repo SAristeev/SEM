@@ -180,23 +180,22 @@ namespace gll
 		}
 	};
 	
-	struct basis {
-		basis() {};
+	class shape_func {
+	public:
+		shape_func();
+	private:
 		template <typename T>
 		using order_arr = std::vector<T>;
 
 		template <typename T>
 		using point_arr = std::vector<T>;
 
-		// dl_j[j][point]
-		//  l_j[j][point]
-		order_arr<point_arr<point_arr<double>>> l;
-		order_arr<point_arr<point_arr<double>>> dl;
+		order_arr<point_arr<point_arr<double>>> derivative;
+	public:
+		double l(int order, int shape_index, int point);
+		double dl(int order, int shape_index, int point);
 	};
-
-	extern basis func;
-
-	
+	extern shape_func func;	
 }
 
 #endif // !__GLL_H__

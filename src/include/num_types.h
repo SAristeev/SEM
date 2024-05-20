@@ -6,6 +6,8 @@
 
 namespace types {
 	using vec3 = Eigen::Vector3d;
+	using mat3 = Eigen::Matrix3d;
+	using matd = Eigen::MatrixXd;
 }
 
 #endif __NUM_TYPES_H__

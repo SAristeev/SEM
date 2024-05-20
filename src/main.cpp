@@ -1,10 +1,12 @@
-#include<fc.h>
-#include<export2vtk.h>
+#include <fc.h>
+#include <solver.h>
+#include <export2vtk.h>
 
-#include<unordered_map>
-#include<string>
+#include <unordered_map>
+#include <string>
 
 using namespace pre;
+using namespace solver;
 using namespace post;
 
 int main(int argc, char* argv[]) {    
@@ -50,6 +52,7 @@ int main(int argc, char* argv[]) {
     }
 
     fc fcase(FC_FileName);
+    solve(fcase);
     export2vtk(fcase.mesh, VTU_FileName);
     return 0;
 }
