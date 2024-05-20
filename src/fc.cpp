@@ -278,14 +278,16 @@ namespace pre {
 						mesh.elems[i] = mesh.nodes.size();
 						mesh.nodes.push_back(nodes_tmp[node]);
 					}	
+					offset_real += 20;
 				}
 				else
 				{
 					add_spectral_elem(elem_id, offset_old, offset_real, elems_tmp, nodes_tmp, map_node_numeration);
 					spectral_elems = true;
+					offset_real += (mesh.order[elem_id] + 1) * (mesh.order[elem_id] + 1) * (mesh.order[elem_id] + 1);
 				}
 				offset_old += 20;
-				offset_real += (mesh.order[elem_id] + 1) * (mesh.order[elem_id] + 1) * (mesh.order[elem_id] + 1);
+				
 			}
 		}
 		mesh.elem_shifts[elems_count] = offset_real;
