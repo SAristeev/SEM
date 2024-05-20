@@ -2,14 +2,15 @@
 #ifndef __FC_H__
 #define __FC_H__
 
-#include<Eigen/Core>
+#include <num_types.h>
+
 #include<filesystem>
 #include<map>
 #include<set>
 
 namespace pre {
 
-	using vec3 = Eigen::Vector3d;
+	using namespace types;
 
 	struct parametic_points
 	{
@@ -53,11 +54,7 @@ namespace pre {
 		// elems parameters 
 		std::vector<int>          elemids;
 		std::vector<uint8_t>      elem_type;
-		std::vector<int>          order;
-		
-		//std::vector<std::pair<int, int>> elem_connectivity;
-
-		std::unordered_map<int, std::tuple<int, int, int>> hex_loc_indxs;
+		std::vector<int>          order;		
 	};
 
 	struct BC {

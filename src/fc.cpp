@@ -3,13 +3,13 @@
 #include <parametric_hex.h>
 
 #include <fstream>
-#include <algorithm> 
+#include <algorithm>	
 
 #include <base64.h>
 #include <json/json.hpp>
 
 namespace pre {
-	static local_indexing loc;
+	static boundary_indexes bound;
 	void fc::add_spectral_elem(int elem_id, int& offset, int& realoffset, const std::vector<int>& elems_tmp, const std::map<int, int>& map_node_numeration)
 	{
 		int order = mesh.order[elem_id];
@@ -48,7 +48,7 @@ namespace pre {
 						}
 					}
 				};
-			for (auto& e : loc.edges) 
+			for (auto& e : bound.edges)
 			{
 				add_edge(e[0], e[1]);
 			}
@@ -98,7 +98,7 @@ namespace pre {
 					}
 				};
 
-			for (auto& f : loc.faces)
+			for (auto& f : bound.faces)
 			{
 				add_face(f[0], f[1], f[2], f[3]);
 			}

@@ -1,13 +1,15 @@
 #pragma once
 #ifndef __PARAMETRIC_HEX_H__
 #define __PARAMETRIC_HEX_H__
-namespace pre 
+
+#include <array>
+namespace pre
 {
-	struct local_indexing
+	struct boundary_indexes
 	{
 		std::array<std::array<int, 2>, 12> edges;
 		std::array<std::array<int, 4>, 6> faces;
-		local_indexing() 
+		boundary_indexes()
 		{
 			{
 				edges[0] = { 0, 1 };
@@ -34,10 +36,7 @@ namespace pre
 				faces[5] = { 4, 5, 7, 6 };
 			}
 		}
-		std::tuple<int, int, int> get_indx(int id, int order) 
-		{
-
-		}
 	};
+	std::array<int, 3> get_local_index(int i, int order);
 }
 #endif
