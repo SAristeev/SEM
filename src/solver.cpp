@@ -2,6 +2,7 @@
 #include <solver.h>
 #include <gll.h>
 #include <parametric_hex.h>
+#include <debug_helper.h>
 
 #include <iostream>
 #include <cassert>
@@ -259,6 +260,8 @@ namespace solver{
 		std::vector<double> K;
 		buildFullGlobalMatrixStruct(fcase.mesh, rows, cols);
 		buildFullGlobalMatrix(fcase, K, rows, cols);
+		
+		debug::print_bsr("C:/WD/Octave/K.txt", 3, K, rows, cols);
 		int breakpoint = 0;
 	}
 }
