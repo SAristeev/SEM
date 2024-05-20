@@ -156,4 +156,57 @@ namespace pre
 	{
 		return indx_map.container[order - 1][i];
 	}
+
+	void get_face(int order, int face_id, std::vector<int>& face_idxs) 
+	{
+		int nodes3 = (order + 1) * (order + 1) * (order + 1);
+		face_idxs.resize((order + 1) * (order + 1));
+		std::fill(face_idxs.begin(), face_idxs.end(), 0);
+		int id = 0;
+		for (int i = 0; i < nodes3; ++i) 
+		{
+			std::array<int, 3> loc = get_local_index(order, i);
+			switch (face_id)
+			{
+			case 0:
+				if (loc[1] == 0){
+					face_idxs[id] = i;
+					id++;
+				}
+				break;
+			case 1:
+				if (loc[1] == order - 1) {
+					face_idxs[id] = i;
+					id++;
+				}
+				break;
+			case 2:
+				if (loc[0] == 0) {
+					face_idxs[id] = i;
+					id++;
+				}
+				break;
+			case 3:
+				if (loc[0] == order - 1) {
+					face_idxs[id] = i;
+					id++;
+				}
+				break;
+			case 4:
+				if (loc[2] == 0) {
+					face_idxs[id] = i;
+					id++;
+				}
+				break;
+			case 5:
+				if (loc[2] == order - 1) {
+					face_idxs[id] = i;
+					id++;
+				}
+				break;
+			default:
+				break;
+			}
+		}
+	}
 }

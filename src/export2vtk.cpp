@@ -1,7 +1,10 @@
 #include <export2vtk.h>
 
 #include <iostream>
+#include <vector>
 
+#include <vtkPointData.h>
+#include <vtkDoubleArray.h>
 #include <vtkCellArray.h>
 #include <vtkNew.h>
 #include <vtkHexahedron.h>
@@ -12,7 +15,7 @@
 #include <vtkXMLUnstructuredGridWriter.h>
 
 namespace post {
-	void export2vtk(const pre::UnstructedMesh& mesh, std::filesystem::path filename)
+	void export2vtk(const pre::UnstructedMesh& mesh, std::vector<double>& results, std::filesystem::path filename)
 	{		
 		vtkNew<vtkUnstructuredGrid> unstructuredGrid;
 		
@@ -21,12 +24,22 @@ namespace post {
 
 		// points
 		vtkNew<vtkPoints> points;
+		vtkNew<vtkDoubleArray> dataArray;
+		dataArray->SetName("Displacement");
+		dataArray->SetNumberOfComponents(3);
+		dataArray->SetNumberOfTuples(mesh.nodes.size());
+
 		for (int node = 0; node < mesh.nodes.size(); node++)
 		{
 			points->InsertNextPoint(mesh.nodes[node][0], mesh.nodes[node][1], mesh.nodes[node][2]);
+			double tuple[3] = { results[3 * node], results[3 * node + 1], results[3 * node + 2] };
+			dataArray->SetTuple(node, tuple);
 		}
+	
+
 		unstructuredGrid->SetPoints(points);
-				
+		unstructuredGrid->GetPointData()->AddArray(dataArray);
+
 		// elems
 		 
 		// all cells MUST have equal type

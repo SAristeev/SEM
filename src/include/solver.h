@@ -5,7 +5,7 @@
 #include <fc.h>
 namespace solver {
 	using namespace pre;
-	void solve(const fc& fcase);
+	void solve(const fc& fcase, std::string filename);
 }
 
 #endif __SOLVER_H__

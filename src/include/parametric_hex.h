@@ -3,6 +3,7 @@
 #define __PARAMETRIC_HEX_H__
 
 #include <array>
+#include <vector>
 namespace pre
 {
 	struct boundary_indexes
@@ -38,5 +39,6 @@ namespace pre
 		}
 	};
 	std::array<int, 3> get_local_index(int order, int i);
+	void get_face(int order, int id, std::vector<int>& face_id);
 }
 #endif
