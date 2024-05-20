@@ -55,7 +55,10 @@ namespace pre {
 		// elems parameters 
 		std::vector<int>          elemids;
 		std::vector<uint8_t>      elem_type;
-		std::vector<int>          order;		
+		std::vector<int>          order;	
+
+		std::map<int, int>        map_node_numeration;
+		std::map<int, int>        map_element_numeration;
 	};
 
 	struct BC {

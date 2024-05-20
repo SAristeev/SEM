@@ -216,7 +216,7 @@ namespace pre {
 		size_t elems_count = fc_file["mesh"]["elems_count"];
 		size_t nodes_count = fc_file["mesh"]["nodes_count"];
 		mesh.elem_shifts.resize(elems_count + 1);
-
+		std::vector<int> elem_shifts_tmp(elems_count + 1);
 		base64::decode_vector(mesh.order, fc_file["mesh"]["elem_orders"]);
 		base64::decode_vector(mesh.elem_type, fc_file["mesh"]["elem_types"]);
 		base64::decode_vector(mesh.elemids, fc_file["mesh"]["elemids"]);
@@ -230,19 +230,18 @@ namespace pre {
 		base64::decode_vector(nodes_tmp, fc_file["mesh"]["nodes"]);
 		
 
-		std::map<int, int>        map_node_numeration;
-		std::map<int, int>        map_element_numeration;
+		
 
 		for (int node_id = 0; node_id < nodes_count; node_id++)
 		{
-			if (!map_node_numeration.insert_or_assign(mesh.nids[node_id], node_id).second)
+			if (!mesh.map_node_numeration.insert_or_assign(mesh.nids[node_id], node_id).second)
 			{
 				throw std::runtime_error("Some nodes with the same ID in the mesh.\nToDo: Verify mesh nodes");
 			}
 		}
 		for (int elem_id = 0; elem_id < elems_count; elem_id++) 
 		{
-			if (!map_element_numeration.insert_or_assign(mesh.elemids[elem_id], elem_id).second)
+			if (!mesh.map_element_numeration.insert_or_assign(mesh.elemids[elem_id], elem_id).second)
 			{
 				throw std::runtime_error("Some elements with the same ID in the mesh.\nToDo: Verify mesh elements");
 			}
@@ -256,10 +255,9 @@ namespace pre {
 			{
 				// HEX (1st order)
 				mesh.elem_shifts[elem_id] = offset_real;
-				
 				for (int i = offset_old; i < offset_old + 8; i++)
 				{
-					int node = map_node_numeration[elems_tmp[i]];
+					int node = mesh.map_node_numeration[elems_tmp[i]];
 					mesh.elems[i] = mesh.nodes.size();
 					mesh.nodes.push_back(nodes_tmp[node]);
 				}
@@ -268,13 +266,16 @@ namespace pre {
 			}
 			else if (mesh.elem_type[elem_id] == '\x4')
 			{
+				// unfortunately hex20 is not Spectral element
+				assert(mesh.order[elem_id] != 2);
+				
 				// HEX (2nd and higher order)
 				mesh.elem_shifts[elem_id] = offset_real;
 				
 				if (mesh.order[elem_id] == 2) {
 					for (int i = offset_old; i < offset_old + 20; i++)
 					{
-						int node = map_node_numeration[elems_tmp[i]];
+						int node = mesh.map_node_numeration[elems_tmp[i]];
 						mesh.elems[i] = mesh.nodes.size();
 						mesh.nodes.push_back(nodes_tmp[node]);
 					}	
@@ -282,7 +283,7 @@ namespace pre {
 				}
 				else
 				{
-					add_spectral_elem(elem_id, offset_old, offset_real, elems_tmp, nodes_tmp, map_node_numeration);
+					add_spectral_elem(elem_id, offset_old, offset_real, elems_tmp, nodes_tmp, mesh.map_node_numeration);
 					spectral_elems = true;
 					offset_real += (mesh.order[elem_id] + 1) * (mesh.order[elem_id] + 1) * (mesh.order[elem_id] + 1);
 				}
@@ -292,10 +293,16 @@ namespace pre {
 		}
 		mesh.elem_shifts[elems_count] = offset_real;
 		
-		if (!spectral_elems) 
+		if(!spectral_elems)
 		{
-			mesh.real_nodes = mesh.nodes.size();
+			mesh.nodes = nodes_tmp;
+			mesh.elems.resize( elems_tmp.size());
+			for (int i = 0; i < elems_tmp.size(); i++) 
+			{
+				mesh.elems[i] = mesh.map_node_numeration[elems_tmp[i]];
+			}
 		}
+
 		// loads
 		for (auto& load : fc_file["loads"])
 		{

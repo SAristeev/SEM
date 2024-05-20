@@ -16,7 +16,7 @@ namespace solver{
 
 		const std::vector<int>& shifts = mesh.elem_shifts;
 		size_t elems_size = mesh.elemids.size();
-		size_t n = mesh.real_nodes;
+		size_t n = mesh.nodes.size();
 
 		std::set<std::pair<int, int>> coostruct;
 
@@ -225,6 +225,12 @@ namespace solver{
 			
 				cblas_dgemm(layout, trans, nontrans, Bcols, Bcols, Ddim, 1.0, B.data(), Ddim, Z.data(), Ddim, 1, A.data(), Bcols);
 			}			
+
+		
+		Eigen::FullPivLU<Eigen::MatrixXd> lu_decomp(A);
+		auto rank = lu_decomp.rank();
+		std::cout << "elem_id = " << elem_id << " rank = " << rank << " size = " << Bcols << std::endl;
+
 			for (int id = 0; id < nodes; id++)
 			{
 				std::vector<int> glob_index(nodes);
@@ -253,6 +259,136 @@ namespace solver{
 		}		
 	}
 
+	void createLoads(const fc& fcase, std::vector<double>& F)
+	{
+		const int& dim = fcase.dim;
+		const UnstructedMesh& mesh = fcase.mesh;
+		const material_t& material = fcase.materials[0];
+
+		F.resize(dim * mesh.nodes.size());
+		std::fill(F.begin(), F.end(), 0);
+		for (const BC& load : fcase.loads)
+		{
+			if (load.name == "Force")
+			{
+				for (int node : load.apply_to)
+				{
+					for (int i = 0; i < 3; i++)
+					{
+						F[2 * mesh.map_node_numeration.at(node) + i] += load.data[i];
+					}
+				}
+			}
+		}
+	}
+
+	// only for 1 order now
+	void applyconstraints(const fc& fcase, std::vector<double>& K, const std::vector<int>& rows, const std::vector<int>& cols, std::vector<double>& F)
+	{
+		int dim = fcase.dim;
+		assert(dim == 3);
+		for (auto& constraint : fcase.restraints)
+		{
+			int coordinate = -1;
+			for (int i = 0; i < 6; i++) {
+				if (i >= 3 && constraint.flag[i] != false)
+				{
+					std::cout << "Found unsupported pivot constraint. Ignore " << std::endl;
+				}
+			}
+
+			for (int node : constraint.apply_to)
+			{
+				int row = fcase.mesh.map_node_numeration.at(node);
+				int n = fcase.mesh.nodes.size();
+
+				// clear column
+				for (int j = 0; j < n; j++)
+				{
+					for (int i = rows[j]; i < rows[j + 1]; i++)
+					{
+						if (constraint.flag[0] && cols[i] == row)
+						{
+							K[dim * dim * i + 0] = 0;
+							K[dim * dim * i + 3] = 0;
+							K[dim * dim * i + 6] = 0;
+						}
+						if (constraint.flag[1] && cols[i] == row)
+						{
+							K[dim * dim * i + 1] = 0;
+							K[dim * dim * i + 4] = 0;
+							K[dim * dim * i + 7] = 0;
+						}
+						if (constraint.flag[2] && cols[i] == row)
+						{
+							K[dim * dim * i + 2] = 0;
+							K[dim * dim * i + 5] = 0;
+							K[dim * dim * i + 8] = 0;
+						}
+					}
+				}
+
+				// clear row
+				for (int i = rows[row]; i < rows[row + 1]; i++)
+				{
+					if (constraint.flag[0])
+					{
+						if (cols[i] == row)
+						{
+							K[dim * dim * i + 0] = 1;
+						}
+						else
+						{
+							K[dim * dim * i + 0] = 0;
+						}
+						K[dim * dim * i + 1] = 0;
+						K[dim * dim * i + 2] = 0;
+					}
+					if (constraint.flag[1])
+					{
+						K[dim * dim * i + 3] = 0;
+						if (cols[i] == row)
+						{
+							K[dim * dim * i + 4] = 1;
+						}
+						else
+						{
+							K[dim * dim * i + 4] = 0;
+						}
+						K[dim * dim * i + 5] = 0;
+
+					}
+					if (constraint.flag[2])
+					{
+						K[dim * dim * i + 6] = 0;
+						K[dim * dim * i + 7] = 0;
+						if (cols[i] == row)
+						{
+							K[dim * dim * i + 8] = 1;
+						}
+						else
+						{
+							K[dim * dim * i + 8] = 0;
+						}
+					}
+				}
+				if (constraint.flag[0])
+				{
+					F[dim * row + 0] = constraint.data[0];
+				}
+				if (constraint.flag[1])
+				{
+					F[dim * row + 1] = constraint.data[1];
+				}
+				if (constraint.flag[2])
+				{
+					F[dim * row + 2] = constraint.data[1];
+				}
+			}
+		}
+	}
+
+
 	void solve(const fc& fcase) 
 	{
 		std::vector<int> rows;
@@ -260,8 +396,11 @@ namespace solver{
 		std::vector<double> K;
 		buildFullGlobalMatrixStruct(fcase.mesh, rows, cols);
 		buildFullGlobalMatrix(fcase, K, rows, cols);
-		
-		debug::print_bsr("C:/WD/Octave/K.txt", 3, K, rows, cols);
+
+		std::vector<double> F;
+		createLoads(fcase, F);
+		applyconstraints(fcase, K, rows, cols, F);
+		debug::print_bsr("C:/WD/Octave/Kc.txt", 3, K, rows, cols);
 		int breakpoint = 0;
 	}
 }
