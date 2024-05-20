@@ -41,6 +41,7 @@ namespace pre {
 	};
 
 	struct UnstructedMesh {
+		int real_nodes = 0;
 		// array of all points
 		std::vector<vec3>         nodes;
 		std::vector<int>          nids;
@@ -82,7 +83,7 @@ namespace pre {
 
 		fc(std::filesystem::path path);
 		
-		void add_spectral_elem(int elem_id, int& offset, int& realoffset, const std::vector<int>& elems_tmp, const std::map<int, int>& map_node_numeration);
+		void add_spectral_elem(int elem_id, int offset_old, int offset_real, const std::vector<int>& elems_tmp, const std::vector<vec3>& nodes_tmp, const std::map<int, int>& map_node_numeration);
 	};
 };
 #endif // __FC_H__

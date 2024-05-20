@@ -37,6 +37,6 @@ namespace pre
 			}
 		}
 	};
-	std::array<int, 3> get_local_index(int i, int order);
+	std::array<int, 3> get_local_index(int order, int i);
 }
 #endif

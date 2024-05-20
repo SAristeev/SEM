@@ -39,7 +39,7 @@ namespace gll
 	}
 	double shape_func::dl(int order, int shape_index, int point_index) {
 		assert(order + 1< gll::max_p);
-		return derivative[order + 1][shape_index][point_index];
+		return derivative[order - 1][shape_index][point_index];
 	}
 	double shape_func::l(int order, int shape_index, int point_index) {
 		assert(order + 1< gll::max_p);

@@ -10,26 +10,40 @@
 
 namespace pre {
 	static boundary_indexes bound;
-	void fc::add_spectral_elem(int elem_id, int& offset, int& realoffset, const std::vector<int>& elems_tmp, const std::map<int, int>& map_node_numeration)
+	void fc::add_spectral_elem(int elem_id, int offset_old, int offset_real, const std::vector<int>& elems_tmp, const std::vector<vec3>& nodes_tmp, const std::map<int, int>& map_node_numeration)
 	{
 		int order = mesh.order[elem_id];
 		int nodes = order + 1;
 		int nodes3 = nodes * nodes * nodes;
 		mesh.elems.resize(mesh.elems.size() + nodes3 - 20);
+
 		// vertices
 		{
-			for (int i = offset; i < offset + 8; i++)
+			for (int i = offset_old; i < offset_old + 8; i++)
 			{
 				int node = map_node_numeration.at(elems_tmp[i]);
-				mesh.elems[realoffset++] = node;
+				vec3 point = nodes_tmp[node];
+				auto find = std::find_if(mesh.nodes.begin(), mesh.nodes.end(), [&](vec3 b) { return (point - b).norm() < 1e-16; });
+				if (find == mesh.nodes.end())
+				{
+					mesh.elems[offset_real] = mesh.nodes.size();
+					mesh.nodes.push_back(point);
+					offset_real++;
+					mesh.real_nodes++;
+				}
+				else
+				{
+					mesh.elems[offset_real] = find - mesh.nodes.begin();
+					offset_real++;
+				}
 			}
 		}
 		// edges
 		{
 			auto add_edge = [&](int x_min_idx, int x_max_idx)
 				{
-					vec3 x_min = mesh.nodes[map_node_numeration.at(elems_tmp[x_min_idx + offset])];
-					vec3 x_max = mesh.nodes[map_node_numeration.at(elems_tmp[x_max_idx + offset])];
+					vec3 x_min = nodes_tmp[map_node_numeration.at(elems_tmp[x_min_idx + offset_old])];
+					vec3 x_max = nodes_tmp[map_node_numeration.at(elems_tmp[x_max_idx + offset_old])];
 					vec3 x_mid = (x_max + x_min) / 2;
 					vec3 x_vec = x_max - x_mid;
 
@@ -39,12 +53,15 @@ namespace pre {
 						auto find = std::find_if(mesh.nodes.begin(), mesh.nodes.end(), [&](vec3 b) { return (point - b).norm() < 1e-16; });
 						if (find == mesh.nodes.end())
 						{
+							mesh.elems[offset_real] = mesh.nodes.size();
 							mesh.nodes.push_back(point);
-							mesh.elems[realoffset++] = mesh.nodes.size() - 1;
+							offset_real++;
+							mesh.real_nodes++;
 						}
 						else
 						{
-							mesh.elems[realoffset++] = find - mesh.nodes.begin();
+							mesh.elems[offset_real] = find - mesh.nodes.begin();
+							offset_real++;
 						}
 					}
 				};
@@ -65,10 +82,10 @@ namespace pre {
 					//	|	 0. . .1
 					//  |    ld     rd
 					//  +-------------->x
-					vec3 ld = mesh.nodes[map_node_numeration.at(elems_tmp[ld_indx + offset])];
-					vec3 rd = mesh.nodes[map_node_numeration.at(elems_tmp[rd_indx + offset])];
-					vec3 lu = mesh.nodes[map_node_numeration.at(elems_tmp[lu_indx + offset])];
-					vec3 ru = mesh.nodes[map_node_numeration.at(elems_tmp[ru_indx + offset])];
+					vec3 ld = nodes_tmp[map_node_numeration.at(elems_tmp[ld_indx + offset_old])];
+					vec3 rd = nodes_tmp[map_node_numeration.at(elems_tmp[rd_indx + offset_old])];
+					vec3 lu = nodes_tmp[map_node_numeration.at(elems_tmp[lu_indx + offset_old])];
+					vec3 ru = nodes_tmp[map_node_numeration.at(elems_tmp[ru_indx + offset_old])];
 
 					vec3 d_mid = (rd + ld) / 2;
 					vec3 l_mid = (lu + ld) / 2;
@@ -87,12 +104,14 @@ namespace pre {
 							auto find = std::find_if(mesh.nodes.begin(), mesh.nodes.end(), [&](vec3 b) { return (point - b).norm() < 1e-16; });
 							if (find == mesh.nodes.end())
 							{
+								mesh.elems[offset_real] = mesh.nodes.size();
 								mesh.nodes.push_back(point);
-								mesh.elems[realoffset++] = mesh.nodes.size() - 1;
+								mesh.real_nodes++;
+								offset_real++;
 							}
 							else
 							{
-								mesh.elems[realoffset++] = find - mesh.nodes.begin();
+								mesh.elems[offset_real++] = find - mesh.nodes.begin();
 							}
 						}
 					}
@@ -106,24 +125,24 @@ namespace pre {
 		}
 		// volume
 		{
-			vec3 min   = mesh.nodes[map_node_numeration.at(elems_tmp[0 + offset])];
-			vec3 x_max = mesh.nodes[map_node_numeration.at(elems_tmp[1 + offset])];
-			vec3 y_max = mesh.nodes[map_node_numeration.at(elems_tmp[3 + offset])];
-			vec3 z_max = mesh.nodes[map_node_numeration.at(elems_tmp[4 + offset])];
+			vec3 min   = nodes_tmp[map_node_numeration.at(elems_tmp[0 + offset_old])];
+			vec3 x_max = nodes_tmp[map_node_numeration.at(elems_tmp[1 + offset_old])];
+			vec3 y_max = nodes_tmp[map_node_numeration.at(elems_tmp[3 + offset_old])];
+			vec3 z_max = nodes_tmp[map_node_numeration.at(elems_tmp[4 + offset_old])];
 
 			vec3 vec_x = x_max - (x_max + min) / 2;
 			vec3 vec_z = z_max - (z_max + min) / 2;
 			vec3 vec_y = y_max - (y_max + min) / 2;
 
 			vec3 mid_point = (
-				mesh.nodes[map_node_numeration.at(elems_tmp[0 + offset])] +
-				mesh.nodes[map_node_numeration.at(elems_tmp[1 + offset])] +
-				mesh.nodes[map_node_numeration.at(elems_tmp[2 + offset])] +
-				mesh.nodes[map_node_numeration.at(elems_tmp[3 + offset])] +
-				mesh.nodes[map_node_numeration.at(elems_tmp[4 + offset])] +
-				mesh.nodes[map_node_numeration.at(elems_tmp[5 + offset])] +
-				mesh.nodes[map_node_numeration.at(elems_tmp[6 + offset])] +
-				mesh.nodes[map_node_numeration.at(elems_tmp[7 + offset])]) / 8;
+				nodes_tmp[map_node_numeration.at(elems_tmp[0 + offset_old])] +
+				nodes_tmp[map_node_numeration.at(elems_tmp[1 + offset_old])] +
+				nodes_tmp[map_node_numeration.at(elems_tmp[2 + offset_old])] +
+				nodes_tmp[map_node_numeration.at(elems_tmp[3 + offset_old])] +
+				nodes_tmp[map_node_numeration.at(elems_tmp[4 + offset_old])] +
+				nodes_tmp[map_node_numeration.at(elems_tmp[5 + offset_old])] +
+				nodes_tmp[map_node_numeration.at(elems_tmp[6 + offset_old])] +
+				nodes_tmp[map_node_numeration.at(elems_tmp[7 + offset_old])]) / 8;
 
 			for (int z_ind = 1; z_ind < nodes - 1; z_ind++)
 			{
@@ -136,8 +155,10 @@ namespace pre {
 							+ gll::points[order - 1][y_ind] * vec_y
 							+ gll::points[order - 1][z_ind] * vec_z
 							+ mid_point;
+
+						mesh.elems[offset_real++] = mesh.nodes.size();
 						mesh.nodes.push_back(point);
-						mesh.elems[realoffset++] = mesh.nodes.size() - 1;
+						mesh.real_nodes++;
 					}
 				}
 			}
@@ -204,7 +225,10 @@ namespace pre {
 		std::vector<int> elems_tmp;
 		base64::decode_vector(elems_tmp, fc_file["mesh"]["elems"]);
 		mesh.elems.resize(elems_tmp.size());
-		base64::decode_vector(mesh.nodes, fc_file["mesh"]["nodes"]);
+		
+		std::vector<vec3> nodes_tmp;
+		base64::decode_vector(nodes_tmp, fc_file["mesh"]["nodes"]);
+		
 
 		std::map<int, int>        map_node_numeration;
 		std::map<int, int>        map_element_numeration;
@@ -224,41 +248,52 @@ namespace pre {
 			}
 		}
 		bool spectral_elems = false;
-		int offset = 0;
-		int realoffset = 0;
+		int offset_old = 0;
+		int offset_real = 0;
 		for (int elem_id = 0; elem_id < elems_count; elem_id++)
 		{
 			if (mesh.elem_type[elem_id] == '\x3')
 			{
 				// HEX (1st order)
-				mesh.elem_shifts[elem_id] = offset;
-				for (int i = offset; i < offset + 8; i++)
+				mesh.elem_shifts[elem_id] = offset_real;
+				
+				for (int i = offset_old; i < offset_old + 8; i++)
 				{
 					int node = map_node_numeration[elems_tmp[i]];
-					mesh.elems[i] = node;
+					mesh.elems[i] = mesh.nodes.size();
+					mesh.nodes.push_back(nodes_tmp[node]);
 				}
-				offset += 8;
+				offset_old += 8;
+				offset_real += 8;
 			}
 			else if (mesh.elem_type[elem_id] == '\x4')
 			{
 				// HEX (2nd and higher order)
-				mesh.elem_shifts[elem_id] = offset;
+				mesh.elem_shifts[elem_id] = offset_real;
+				
 				if (mesh.order[elem_id] == 2) {
-					for (int i = offset; i < offset + 20; i++)
+					for (int i = offset_old; i < offset_old + 20; i++)
 					{
 						int node = map_node_numeration[elems_tmp[i]];
-						mesh.elems[i] = node;
+						mesh.elems[i] = mesh.nodes.size();
+						mesh.nodes.push_back(nodes_tmp[node]);
 					}	
 				}
 				else
 				{
-					add_spectral_elem(elem_id, offset, realoffset, elems_tmp, map_node_numeration);
+					add_spectral_elem(elem_id, offset_old, offset_real, elems_tmp, nodes_tmp, map_node_numeration);
+					spectral_elems = true;
 				}
-				offset += 20;
+				offset_old += 20;
+				offset_real += (mesh.order[elem_id] + 1) * (mesh.order[elem_id] + 1) * (mesh.order[elem_id] + 1);
 			}
 		}
-		mesh.elem_shifts[elems_count] = std::max(offset, realoffset);
+		mesh.elem_shifts[elems_count] = offset_real;
 		
+		if (!spectral_elems) 
+		{
+			mesh.real_nodes = mesh.nodes.size();
+		}
 		// loads
 		for (auto& load : fc_file["loads"])
 		{

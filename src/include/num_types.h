@@ -3,6 +3,7 @@
 #define __NUM_TYPES_H__
 
 #include<Eigen/Core>
+#include<Eigen/Dense>
 
 namespace types {
 	using vec3 = Eigen::Vector3d;
