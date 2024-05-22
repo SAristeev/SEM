@@ -41,7 +41,7 @@ namespace pre {
 	};
 
 	struct UnstructedMesh {
-		int real_nodes = 0;
+		bool spectral_elems;
 		// array of all points
 		std::vector<vec3>         nodes;
 		std::vector<int>          nids;
@@ -66,12 +66,16 @@ namespace pre {
 		std::vector<bool> flag;
 		std::vector<double> data;
 		std::string name;
+
+		std::vector<std::pair<int, int>> elem2face;
+		void from_nodeset(const UnstructedMesh& original_mesh, const UnstructedMesh& computational_mesh);
+		void node_mapping(const UnstructedMesh& original_mesh, const UnstructedMesh& computational_mesh);
 	};
 
 	struct fc
 	{
 		int dim;
-
+		std::vector<std::map<int, int>> elem_face2_nodes;
 		std::map<int, unsigned char> matid_threshold_map;
 		std::map<int, unsigned char> block_threshold_map;
 		std::vector<material_t> materials;
@@ -79,14 +83,15 @@ namespace pre {
 		std::vector<int> blocks;
 		std::vector<unsigned char> thresholds;
 
-		UnstructedMesh mesh;
+		UnstructedMesh original_mesh;
+		UnstructedMesh computational_mesh;
 
 		std::vector<BC> restraints;
 		std::vector<BC> loads;
 
 		fc(std::filesystem::path path);
-		
-		void add_spectral_elem(int elem_id, int offset_old, int offset_real, const std::vector<int>& elems_tmp, const std::vector<vec3>& nodes_tmp, const std::map<int, int>& map_node_numeration);
+	private:
+		void add_spectral_elem(int elem_id);
 	};
 };
 #endif // __FC_H__

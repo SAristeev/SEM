@@ -209,4 +209,24 @@ namespace pre
 			}
 		}
 	}
+
+	void get_nodeset(int order, std::array<int, 4> nodeset, std::vector<int>& face_idxs) 
+	{
+		for (int face = 0; face < 6; face++) 
+		{
+			std::array<bool, 4> find = { false, false, false, false };
+			for (int point = 0; point < 4; point++) 
+			{
+				if (std::find(bound.faces[face].begin(), bound.faces[face].end(), nodeset[point]) != bound.faces[face].end()) 
+				{
+					find[point] = true;
+				}
+			}
+			if (find[0] && find[1] && find[2] && find[3]) 
+			{
+				get_face(order, face, face_idxs);
+				break;
+			}
+		}
+	}
 }

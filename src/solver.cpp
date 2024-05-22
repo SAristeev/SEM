@@ -16,7 +16,7 @@ namespace solver{
 	{
 
 		const std::vector<int>& shifts = mesh.elem_shifts;
-		size_t elems_size = mesh.elemids.size();
+		size_t elems_size = mesh.elem_type.size();
 		size_t n = mesh.nodes.size();
 
 		std::set<std::pair<int, int>> coostruct;
@@ -55,7 +55,7 @@ namespace solver{
 
 		const int& dim = fcase.dim;
 		assert(dim == 3);
-		const UnstructedMesh& mesh = fcase.mesh;
+		const UnstructedMesh& mesh = fcase.computational_mesh;
 		const material_t& material = fcase.materials[0];
 
 		size_t n = rows.size() - 1;
@@ -96,7 +96,7 @@ namespace solver{
 		CBLAS_TRANSPOSE trans = CblasTrans;
 		const double beta = 1.0;
 
-		for (int elem_id = 0; elem_id < mesh.elemids.size(); elem_id++) {
+		for (int elem_id = 0; elem_id < mesh.elem_type.size(); elem_id++) {
 			std::cout << "-------------------------------- " << std::endl;
 			std::cout << "elem_id = " << elem_id << std::endl;
 			int order = mesh.order[elem_id];
@@ -263,7 +263,7 @@ namespace solver{
 	void createLoads(const fc& fcase, std::vector<double>& F)
 	{
 		const int& dim = fcase.dim;
-		const UnstructedMesh& mesh = fcase.mesh;
+		const UnstructedMesh& mesh = fcase.computational_mesh;
 		const material_t& material = fcase.materials[0];
 
 		F.resize(dim * mesh.nodes.size());
@@ -276,7 +276,7 @@ namespace solver{
 				{
 					for (int i = 0; i < 3; i++)
 					{
-						F[dim * mesh.map_node_numeration.at(node) + i] += load.data[i];
+						F[dim * node + i] += load.data[i];
 					}
 				}
 			}
@@ -335,8 +335,8 @@ namespace solver{
 
 			for (int node : constraint.apply_to)
 			{
-				int row = fcase.mesh.map_node_numeration.at(node);
-				int n = fcase.mesh.nodes.size();
+				int row = node;
+				int n = fcase.computational_mesh.nodes.size();
 
 				// clear column
 				for (int j = 0; j < n; j++)
@@ -532,9 +532,9 @@ namespace solver{
 		std::vector<int> rows;
 		std::vector<int> cols;
 		std::vector<double> K;
-		buildFullGlobalMatrixStruct(fcase.mesh, rows, cols);
+		buildFullGlobalMatrixStruct(fcase.computational_mesh, rows, cols);
 		buildFullGlobalMatrix(fcase, K, rows, cols);
-
+		debug::print_bsr("C:/WD/Octave/K.txt", 3, K, rows, cols);
 		std::vector<double> F;
 		createLoads(fcase, F);
 		applyconstraints(fcase, K, rows, cols, F);
@@ -542,7 +542,7 @@ namespace solver{
 		LAE_solver(fcase.dim, K, rows, cols, 1, F, x);
 		debug::print_bsr("C:/WD/Octave/Kc.txt", 3, K, rows, cols);
 
-		post::export2vtk(fcase.mesh, x, filename);
+		post::export2vtk(fcase.computational_mesh, x, filename);
 		int breakpoint = 0;
 	}
 }

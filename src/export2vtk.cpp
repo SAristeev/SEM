@@ -61,7 +61,7 @@ namespace post {
 			}
 			if (mesh.elem_type[elem_id] == '\x4')
 			{
-				if(mesh.order[elem_id] == 2){
+				/*if(mesh.order[elem_id] == 2){
 					type = VTK_QUADRATIC_HEXAHEDRON;
 					vtkNew<vtkQuadraticHexahedron> hex;
 					for (int i = 0; i < 20; i++)
@@ -71,7 +71,7 @@ namespace post {
 					cellArray->InsertNextCell(hex);
 					offset += 20;
 				}
-				else 
+				else */
 				{
 					type = VTK_LAGRANGE_HEXAHEDRON;
 					vtkNew<vtkLagrangeHexahedron> hex;
