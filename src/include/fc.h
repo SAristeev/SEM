@@ -44,6 +44,7 @@ namespace pre {
 		double nu;
 	};
 
+	//TODO: Add reverse Cuthill–McKee
 	struct UnstructedMesh {
 		bool spectral_elems;
 		// array of all points
@@ -65,7 +66,7 @@ namespace pre {
 		std::map<int, int>        map_element_numeration;
 	};
 
-
+	// TODO: interpolator
 	struct BC {
 		struct dynamic_type
 		{

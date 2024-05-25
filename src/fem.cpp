@@ -259,7 +259,7 @@ namespace solver
 		}
 	}
 
-	//TODO:
+	//TODO: buildMassMatrix
 	void buildMassMatrix(const fc& fcase, std::vector<double>& M) {
 		std::fill(M.begin(), M.end(), 1);
 	}
@@ -292,6 +292,7 @@ namespace solver
 			}
 			if (load.name == "Pressure")
 			{
+				//not working
 				for (int p = 0; p < load.apply_to.size() / 2; p++) {
 					int elem = 2 * p;
 					int edge = 2 * p + 1;

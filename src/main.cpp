@@ -8,6 +8,11 @@
 using namespace pre;
 using namespace solver;
 
+
+//TODO: make it parallel (shared memory)
+// maybe CUDA-powered algebra
+// or MPI version
+
 int main(int argc, char* argv[]) {    
     std::unordered_map<std::string, std::string> parsed_params;//in the pair {key,param} param may be empty
 
