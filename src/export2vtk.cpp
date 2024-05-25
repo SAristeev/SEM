@@ -1,6 +1,6 @@
 #include <export2vtk.h>
 
-#include <iostream>
+#include <fstream>
 #include <vector>
 
 #include <vtkPointData.h>
@@ -98,5 +98,23 @@ namespace post {
 		writer->SetInputData(unstructuredGrid);
 		writer->Write();
 
+	}
+	void collect_steps(std::filesystem::path dir, std::string filename, std::vector<double> steps)
+	{
+		std::ofstream pvd_file(dir / std::string(filename + ".pvd"));
+		pvd_file << "<?xml version=\"1.0\"?>\n";
+		pvd_file << " <VTKFile type=\"Collection\" version=\"0.1\">\n";
+		pvd_file << "  <Collection>\n";
+		for (int i = 0; i < steps.size() - 1; i++) 
+		{
+			pvd_file << "  <DataSet timestep=\""
+				<< steps[i] << "\" step=\""
+				<< i
+				<< "\" file=\""
+				<< std::string(filename + "_" + std::to_string(i) + ".vtu\"/>\n");
+
+		};
+		pvd_file << "  </Collection>\n";
+		pvd_file << "</VTKFile>\n";
 	}
 }

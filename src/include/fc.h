@@ -4,12 +4,16 @@
 
 #include <num_types.h>
 
-#include<filesystem>
-#include<map>
-#include<set>
+#include <functional>
+#include <filesystem>
+#include <map>
+#include <set>
 
 namespace pre {
-
+	enum ploblem_type {
+		eStatic,
+		eDynamic
+	};
 	using namespace types;
 
 	struct parametic_points
@@ -61,19 +65,32 @@ namespace pre {
 		std::map<int, int>        map_element_numeration;
 	};
 
+
 	struct BC {
+		struct dynamic_type
+		{
+			std::string name;
+			std::vector<double> param;
+		}; 
+
+		std::vector<dynamic_type> types;
 		std::vector<int> apply_to;
 		std::vector<bool> flag;
 		std::vector<double> data;
+
 		std::string name;
 
 		std::vector<std::pair<int, int>> elem2face;
 		void from_nodeset(const UnstructedMesh& original_mesh, const UnstructedMesh& computational_mesh);
 		void node_mapping(const UnstructedMesh& original_mesh, const UnstructedMesh& computational_mesh);
+
+		
+		
 	};
 
 	struct fc
 	{
+		ploblem_type type; // 0 static, 1 dymamic 
 		int dim;
 		std::vector<std::map<int, int>> elem_face2_nodes;
 		std::map<int, unsigned char> matid_threshold_map;

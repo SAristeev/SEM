@@ -1,7 +1,7 @@
 #include <fc.h>
 #include <solver.h>
 
-
+#include <filesystem>
 #include <unordered_map>
 #include <string>
 
@@ -26,11 +26,11 @@ int main(int argc, char* argv[]) {
         }
     }
     
-    std::string FC_FileName;
+    std::filesystem::path WorkDirectory;
     {
-        const auto it = parsed_params.find("--fc");
+        const auto it = parsed_params.find("-d");
         if (it != parsed_params.end() && !it->second.empty()) {
-            FC_FileName = it->second;
+            WorkDirectory = it->second;
             parsed_params.erase(it);
         }
         else {
@@ -38,20 +38,20 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    std::string VTU_FileName;
+    std::string filename;
     {
-        const auto it = parsed_params.find("--vtu");
+        const auto it = parsed_params.find("-f");
         if (it != parsed_params.end() && !it->second.empty()) {
-            VTU_FileName = it->second;
+            filename = it->second;
             parsed_params.erase(it);
         }
         else {
-            printf("ERROR: Path to vtu is not provided!\n");
+            printf("ERROR: fc filename is not provided!\n");
         }
     }
 
-    fc fcase(FC_FileName);
-    solve(fcase, VTU_FileName);
+    fc fcase(WorkDirectory / std::string(filename + +".fc"));
+    solve(fcase, WorkDirectory, filename );
     
     return 0;
 }

@@ -264,6 +264,14 @@ namespace pre {
 			dim = 3;
 		}
 
+		// calc type
+		if (fc_file["settings"]["type"] == "2D") {
+			type = ploblem_type::eStatic;
+		}
+		if (fc_file["settings"]["type"] == "dynamic") {
+			type = ploblem_type::eDynamic;
+		}
+
 		// materials
 		unsigned int mat_id = 1;
 		for (auto& mat : fc_file["materials"])
@@ -390,7 +398,6 @@ namespace pre {
 
 			BC& bc = loads.back();
 			base64::decode_vector(bc.apply_to, load["apply_to"]);
-
 			bc.name = load["name"];
 			int data_size;
 			if (bc.name == "Pressure")
@@ -410,7 +417,46 @@ namespace pre {
 			{
 				std::string data_b64 = load["data"][i];
 				bc.data.push_back(0.);
-				base64::decode(data_b64.data(), data_b64.size(), reinterpret_cast<char*>(&bc.data[i]));
+				bc.types.push_back({});
+				if (type == ploblem_type::eDynamic)
+				{
+					std::string data = load["data"][i];
+					std::string& name = bc.types[i].name;
+					std::vector<double>& parameters = bc.types[i].param;
+					auto parse = [&](const std::string& input) {
+
+						// Извлекаем коэффициент
+						std::stringstream preBracketStream(input);
+						preBracketStream >> bc.data[i];
+
+						size_t stBracketPos = input.find('(');
+						size_t fiBracketPos = input.find_last_of(')');
+
+						std::string dynamic = input.substr(stBracketPos + 1, fiBracketPos - stBracketPos - 1);
+						
+						stBracketPos = dynamic.find('(');
+						fiBracketPos = dynamic.find_last_of(')');
+
+						name = dynamic.substr(0, stBracketPos);
+
+						std::stringstream paramsStream(dynamic.substr(stBracketPos + 1, fiBracketPos - stBracketPos - 1));
+						double param;
+						while (paramsStream >> param) {
+							parameters.push_back(param);
+							if (paramsStream.peek() == ',')
+								paramsStream.ignore();
+						}
+
+					};
+					parse(data);
+
+				}
+				else
+				{
+					base64::decode(data_b64.data(), data_b64.size(), reinterpret_cast<char*>(&bc.data[i]));
+				}
+				
+				
 			}
 
 		}

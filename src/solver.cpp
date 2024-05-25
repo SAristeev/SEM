@@ -1,14 +1,17 @@
-#include <num_types.h>
-#include <solver.h>
-#include <gll.h>
-#include <parametric_hex.h>
-#include <debug_helper.h>
-#include <export2vtk.h>
+#include "dynamic_loads.h"
+#include "num_types.h"
+#include "solver.h"
+#include "gll.h"
+#include "parametric_hex.h"
+#include "debug_helper.h"
+#include "export2vtk.h"
 
 #include <iostream>
+#include <filesystem>
 #include <cassert>
 
 #include <mkl.h>
+#include <mkl_spblas.h>
 
 namespace solver{
 
@@ -228,9 +231,9 @@ namespace solver{
 			}			
 
 		
-		Eigen::FullPivLU<Eigen::MatrixXd> lu_decomp(A);
+		/*Eigen::FullPivLU<Eigen::MatrixXd> lu_decomp(A);
 		auto rank = lu_decomp.rank();
-		std::cout << "elem_id = " << elem_id << " rank = " << rank << " size = " << Bcols << std::endl;
+		std::cout << "elem_id = " << elem_id << " rank = " << rank << " size = " << Bcols << std::endl;*/
 
 			for (int id = 0; id < nodes; id++)
 			{
@@ -276,7 +279,14 @@ namespace solver{
 				{
 					for (int i = 0; i < 3; i++)
 					{
-						F[dim * node + i] += load.data[i];
+						const std::string& load_type = load.types[i].name;
+						const std::vector<double>& params = load.types[i].param;
+						double time_coeff = 1;
+						if (load_type == "berlage")
+						{
+							time_coeff = berlage_load(0., params[0], params[1]);
+						}
+						F[dim * node + i] += load.data[i] * time_coeff;
 					}
 				}
 			}
@@ -318,6 +328,35 @@ namespace solver{
 		}
 	}
 
+	void updateLoads(const fc& fcase, std::vector<double>& F, double t)
+	{
+		const int& dim = fcase.dim;
+		const UnstructedMesh& mesh = fcase.computational_mesh;
+		const material_t& material = fcase.materials[0];
+
+		F.resize(dim * mesh.nodes.size());
+		std::fill(F.begin(), F.end(), 0);
+		for (const BC& load : fcase.loads)
+		{
+			if (load.name == "Force")
+			{
+				for (int node : load.apply_to)
+				{
+					for (int i = 0; i < 3; i++)
+					{
+						const std::string& load_type = load.types[i].name;
+						const std::vector<double>& params = load.types[i].param;
+						double time_coeff = 1;
+						if (load_type == "berlage") 
+						{
+							time_coeff = berlage_load(t, params[0], params[1]);
+						}
+						F[dim * node + i] += load.data[i] * time_coeff;
+					}
+				}
+			}
+		}
+	}
 	// only for 1 order now
 	void applyconstraints(const fc& fcase, std::vector<double>& K, const std::vector<int>& rows, const std::vector<int>& cols, std::vector<double>& F)
 	{
@@ -526,23 +565,63 @@ namespace solver{
 		mkl_free_buffers();
 	}
 
+	void t_step(double dt, const int& blocksize, const std::vector<double>& M, const std::vector<double>& K, const std::vector<int>& rows, const std::vector<int>& cols, const int& nrhs, const std::vector<double>& b, std::vector<double>& x, std::vector<double>& x_prev)
+	{
+		MKL_INT n = rows.size() - 1;
+		MKL_INT nnz = rows[n];
 
-	void solve(const fc& fcase, std::string filename) 
+		const MKL_INT* h_RowsK = rows.data();
+		const MKL_INT* h_ColsK = cols.data();
+		const double* h_ValsK = K.data();
+		
+
+		std::vector<double> tmp(x.size());
+		const char trans = 'n';
+		mkl_cspblas_dbsrgemv(&trans, &n, &blocksize, h_ValsK, h_RowsK, h_ColsK, x.data(), tmp.data());
+		for (int i = 0; i < blocksize * n; i++)
+		{
+			tmp[i] = dt * dt * (b[i] - tmp[i]);
+			x[i] = tmp[i] + x_prev[i];
+		}
+	}
+
+	void solve(const fc& fcase, std::filesystem::path dir, std::string filename) 
 	{
 		std::vector<int> rows;
 		std::vector<int> cols;
 		std::vector<double> K;
 		buildFullGlobalMatrixStruct(fcase.computational_mesh, rows, cols);
 		buildFullGlobalMatrix(fcase, K, rows, cols);
-		debug::print_bsr("C:/WD/Octave/K.txt", 3, K, rows, cols);
 		std::vector<double> F;
+		std::vector<double> x(fcase.dim * (rows.size() - 1));
 		createLoads(fcase, F);
 		applyconstraints(fcase, K, rows, cols, F);
-		std::vector<double> x(F.size());
-		LAE_solver(fcase.dim, K, rows, cols, 1, F, x);
-		debug::print_bsr("C:/WD/Octave/Kc.txt", 3, K, rows, cols);
+		if (fcase.type == eDynamic) 
+		{
+			std::vector<double> x_prev = x;
+			double t = 0;
+			// TODO compute dt
+			double dt = 5e-8;
+			std::vector<double> time_steps;
+			time_steps.push_back(0);
+			// TODO compute M;
+			std::vector<double> M(x.size());
+			for (int i = 0; i < 1000; i++) 
+			{
+				std::cout << "step " << i << std::endl;
+				updateLoads(fcase, F, t);
+				t_step(dt, fcase.dim, M, K, rows, cols, 1, F, x, x_prev);
+				post::export2vtk(fcase.computational_mesh, x, dir / std::string(filename + "_" + std::to_string(i) + ".vtu"));
+				x_prev = x;
+				t += dt;
+				time_steps.push_back(t);			
+			}
+			post::collect_steps(dir, filename, time_steps);
 
-		post::export2vtk(fcase.computational_mesh, x, filename);
-		int breakpoint = 0;
+		}
+		else {
+			LAE_solver(fcase.dim, K, rows, cols, 1, F, x);
+			post::export2vtk(fcase.computational_mesh, x, dir / std::string(filename + ".fc"));
+		}
 	}
 }
