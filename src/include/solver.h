@@ -2,10 +2,10 @@
 #ifndef __SOLVER_H__
 #define __SOLVER_H__
 
-#include <fc.h>
+#include "fc.h"
 namespace solver {
 	using namespace pre;
-	void solve(const fc& fcase, std::filesystem::path dir, std::string filename);
+	void start_problem(const fc& fcase, std::filesystem::path dir, std::string filename);
 }
 
 #endif __SOLVER_H__

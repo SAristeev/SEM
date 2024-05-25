@@ -9,7 +9,7 @@ using namespace pre;
 using namespace solver;
 
 int main(int argc, char* argv[]) {    
-    std::unordered_map<std::string, std::string>  parsed_params;//in the pair {key,param} param may be empty
+    std::unordered_map<std::string, std::string> parsed_params;//in the pair {key,param} param may be empty
 
     for (int pos = 1; pos < argc; ++pos) {
         if (argv[pos][0] == '-') {//key is found
@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
     }
 
     fc fcase(WorkDirectory / std::string(filename + +".fc"));
-    solve(fcase, WorkDirectory, filename );
+    start_problem(fcase, WorkDirectory, filename );
     
     return 0;
 }

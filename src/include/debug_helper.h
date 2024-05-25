@@ -2,6 +2,7 @@
 #ifndef __DEBUG_HELPER_H__
 #define __DEBUG_HELPER_H__
 
+#include <iostream>
 #include <filesystem>
 namespace debug_helper
 {

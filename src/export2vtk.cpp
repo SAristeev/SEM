@@ -94,7 +94,8 @@ namespace post {
 		pvd_file << "<?xml version=\"1.0\"?>\n";
 		pvd_file << " <VTKFile type=\"Collection\" version=\"0.1\">\n";
 		pvd_file << "  <Collection>\n";
-		for (int i = 0; i < time_steps.size() - 1; i++) 
+		pvd_file << "  <DataSet timestep= 0 step=0 file=\""	<< std::string(filename + "_0.vtu\"/>\n");
+		for (int i = 1; i < time_steps.size(); i++) 
 		{
 			pvd_file << "  <DataSet timestep=\""
 				<< time_steps[i] << "\" step=\""
