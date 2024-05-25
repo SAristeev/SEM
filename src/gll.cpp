@@ -1,11 +1,13 @@
-#include <gll.h>
+#include "gll.h"
+
 #include <cassert>
 
 namespace gll
 {
 	// derivative[j][point]
-	shape_func::shape_func()
+	shape::shape()
 	{
+		int max_p = 10;
 		derivative.resize(max_p - 1);
 		for (int order = 0; order < max_p - 1; order++)
 		{
@@ -37,13 +39,11 @@ namespace gll
 			}
 		}
 	}
-	double shape_func::dl(int order, int shape_index, int point_index) {
-		assert(order + 1< gll::max_p);
+	double shape::dl(int order, int shape_index, int point_index) {
 		return derivative[order - 1][shape_index][point_index];
 	}
-	double shape_func::l(int order, int shape_index, int point_index) {
+	double shape::l(int order, int shape_index, int point_index) {
 		assert(order + 1< gll::max_p);
 		return (shape_index == point_index) ? 1. : 0.;
 	}
-	shape_func func;
 }

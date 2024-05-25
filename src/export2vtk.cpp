@@ -1,4 +1,4 @@
-#include <export2vtk.h>
+#include "export2vtk.h"
 
 #include <fstream>
 #include <vector>
@@ -15,7 +15,7 @@
 #include <vtkXMLUnstructuredGridWriter.h>
 
 namespace post {
-	void export2vtk(const pre::UnstructedMesh& mesh, std::vector<double>& results, std::filesystem::path filename)
+	void export2vtk(const pre::UnstructedMesh& mesh, std::vector<double>& results, const std::filesystem::path& filename)
 	{		
 		vtkNew<vtkUnstructuredGrid> unstructuredGrid;
 		
@@ -61,32 +61,19 @@ namespace post {
 			}
 			if (mesh.elem_type[elem_id] == '\x4')
 			{
-				/*if(mesh.order[elem_id] == 2){
-					type = VTK_QUADRATIC_HEXAHEDRON;
-					vtkNew<vtkQuadraticHexahedron> hex;
-					for (int i = 0; i < 20; i++)
-					{
-						hex->GetPointIds()->SetId(i, mesh.elems[i + offset]);
-					}
-					cellArray->InsertNextCell(hex);
-					offset += 20;
-				}
-				else */
-				{
-					type = VTK_LAGRANGE_HEXAHEDRON;
-					vtkNew<vtkLagrangeHexahedron> hex;
-					int nodes = mesh.order[elem_id] + 1;
-					int nodes3 = nodes * nodes * nodes;
+				type = VTK_LAGRANGE_HEXAHEDRON;
+				vtkNew<vtkLagrangeHexahedron> hex;
+				int nodes = mesh.order[elem_id] + 1;
+				int nodes3 = nodes * nodes * nodes;
 					
-					hex->GetPointIds()->SetNumberOfIds(nodes3);
-					for (int i = 0; i < nodes3; i++)
-					{
-						hex->GetPointIds()->SetId(i, mesh.elems[i + offset]);
-					}
-
-					cellArray->InsertNextCell(hex);
-					offset += nodes3;
+				hex->GetPointIds()->SetNumberOfIds(nodes3);
+				for (int i = 0; i < nodes3; i++)
+				{
+					hex->GetPointIds()->SetId(i, mesh.elems[i + offset]);
 				}
+
+				cellArray->InsertNextCell(hex);
+				offset += nodes3;
 			}
 		}
 		
@@ -99,16 +86,18 @@ namespace post {
 		writer->Write();
 
 	}
-	void collect_steps(std::filesystem::path dir, std::string filename, std::vector<double> steps)
+	void collect_steps(const std::filesystem::path& dir, const std::string& filename, const std::vector<double>& time_steps)
 	{
-		std::ofstream pvd_file(dir / std::string(filename + ".pvd"));
+		std::ofstream pvd_file;
+		std::string full_name = filename + ".pvd";
+		pvd_file.open(dir / full_name);
 		pvd_file << "<?xml version=\"1.0\"?>\n";
 		pvd_file << " <VTKFile type=\"Collection\" version=\"0.1\">\n";
 		pvd_file << "  <Collection>\n";
-		for (int i = 0; i < steps.size() - 1; i++) 
+		for (int i = 0; i < time_steps.size() - 1; i++) 
 		{
 			pvd_file << "  <DataSet timestep=\""
-				<< steps[i] << "\" step=\""
+				<< time_steps[i] << "\" step=\""
 				<< i
 				<< "\" file=\""
 				<< std::string(filename + "_" + std::to_string(i) + ".vtu\"/>\n");
@@ -116,5 +105,6 @@ namespace post {
 		};
 		pvd_file << "  </Collection>\n";
 		pvd_file << "</VTKFile>\n";
+		pvd_file.close();
 	}
 }

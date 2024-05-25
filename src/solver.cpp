@@ -55,7 +55,7 @@ namespace solver{
 	}
 
 	void buildFullGlobalMatrix(const fc& fcase, std::vector<double>& K, const std::vector<int>& rows, const std::vector<int>& cols) {
-
+		gll::shape& shape_funcs = gll::shape::getInstance();
 		const int& dim = fcase.dim;
 		assert(dim == 3);
 		const UnstructedMesh& mesh = fcase.computational_mesh;
@@ -151,19 +151,19 @@ namespace solver{
 					std::array<int, 3> shape_index = pre::get_local_index(order, jd);
 
 					d_Nd_xi[jd] =
-						gll::func.dl(order, shape_index[0], point_index[0]) *
-						gll::func.l(order, shape_index[1], point_index[1]) *
-						gll::func.l(order, shape_index[2], point_index[2]);
+						shape_funcs.dl(order, shape_index[0], point_index[0]) *
+						shape_funcs.l(order, shape_index[1], point_index[1]) *
+						shape_funcs.l(order, shape_index[2], point_index[2]);
 					
 					d_Nd_eta[jd] =
-						gll::func.l(order, shape_index[0], point_index[0]) *
-						gll::func.dl(order, shape_index[1], point_index[1]) *
-						gll::func.l(order, shape_index[2], point_index[2]);
+						shape_funcs.l(order, shape_index[0], point_index[0]) *
+						shape_funcs.dl(order, shape_index[1], point_index[1]) *
+						shape_funcs.l(order, shape_index[2], point_index[2]);
 
 					d_Nd_zeta[jd] =
-						gll::func.l(order, shape_index[0], point_index[0]) *
-						gll::func.l(order, shape_index[1], point_index[1]) *
-						gll::func.dl(order, shape_index[2], point_index[2]);
+						shape_funcs.l(order, shape_index[0], point_index[0]) *
+						shape_funcs.l(order, shape_index[1], point_index[1]) *
+						shape_funcs.dl(order, shape_index[2], point_index[2]);
 				}
 
 				// compute J

@@ -1,8 +1,7 @@
-#include <debug_helper.h>
+#include "debug_helper.h"
 #include <fstream>
 
-namespace debug {
-
+namespace debug_helper {
 	void print_bsr(const std::filesystem::path filename, const int& dim, std::vector<double>& K, const std::vector<int>& rows, const std::vector<int>& cols) {
 		std::ofstream file(filename);
 
