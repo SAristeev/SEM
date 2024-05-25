@@ -65,9 +65,7 @@ namespace solver{
 			}
 			else 
 			{
-				//TODO:
-				// implicit
-				// Newmark scheme
+				//TODO: implicit (Newmark scheme)
 			}
 			post::collect_steps(dir, filename, time_steps);
 		}
