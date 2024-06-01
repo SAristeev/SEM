@@ -15,7 +15,7 @@
 #include <vtkXMLUnstructuredGridWriter.h>
 
 namespace post {
-	void export2vtk(const pre::UnstructedMesh& mesh, std::vector<double>& results, const std::filesystem::path& filename)
+	void export2vtk(const pre::UnstructedMesh& mesh,const std::vector<double>& results, const std::filesystem::path& filename)
 	{		
 		vtkNew<vtkUnstructuredGrid> unstructuredGrid;
 		
@@ -94,7 +94,7 @@ namespace post {
 		pvd_file << "<?xml version=\"1.0\"?>\n";
 		pvd_file << " <VTKFile type=\"Collection\" version=\"0.1\">\n";
 		pvd_file << "  <Collection>\n";
-		pvd_file << "  <DataSet timestep= 0 step=0 file=\""	<< std::string(filename + "_0.vtu\"/>\n");
+		pvd_file << "  <DataSet timestep= \"0\" step=\"0\" file=\""	<< std::string(filename + "_0.vtu\"/>\n");
 		for (int i = 1; i < time_steps.size(); i++) 
 		{
 			pvd_file << "  <DataSet timestep=\""

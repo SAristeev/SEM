@@ -36,12 +36,13 @@ namespace pre {
 
 	struct material_t
 	{
-		material_t(unsigned char _id, int _threshold, double _E, double _nu) :id(_id), threshold(_threshold), E(_E), nu(_nu) {};
+		material_t(unsigned char _id, int _threshold, double _E, double _nu, double _density) :id(_id), threshold(_threshold), E(_E), nu(_nu), density(_density) {};
 		unsigned char id;
 		int threshold;
 
 		double E;
 		double nu;
+		double density;
 	};
 
 	//TODO: Add reverse Cuthill–McKee

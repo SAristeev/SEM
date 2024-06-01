@@ -222,8 +222,10 @@ namespace solver
 
 				}
 				cblas_dgemm(layout, nontrans, nontrans, Ddim, Bcols, Ddim, std::abs(detJ), D.data(), Ddim, B.data(), Ddim, 0, Z.data(), Ddim);
-
-				cblas_dgemm(layout, trans, nontrans, Bcols, Bcols, Ddim, 1.0, B.data(), Ddim, Z.data(), Ddim, 1, A.data(), Bcols);
+				double weight = gll::weights[order - 1][point_index[0]] *
+								gll::weights[order - 1][point_index[1]] *
+								gll::weights[order - 1][point_index[2]];
+				cblas_dgemm(layout, trans, nontrans, Bcols, Bcols, Ddim, weight, B.data(), Ddim, Z.data(), Ddim, 1, A.data(), Bcols);
 			}
 
 
@@ -259,9 +261,100 @@ namespace solver
 		}
 	}
 
-	//TODO: buildMassMatrix
 	void buildMassMatrix(const fc& fcase, std::vector<double>& M) {
-		std::fill(M.begin(), M.end(), 1);
+		gll::shape& shape_funcs = gll::shape::getInstance();
+		const int& dim = fcase.dim;
+		assert(dim == 3);
+		const UnstructedMesh& mesh = fcase.computational_mesh;
+		const material_t& material = fcase.materials[0];
+
+		std::fill(M.begin(), M.end(), 0);
+
+		for (int elem_id = 0; elem_id < mesh.elem_type.size(); elem_id++)
+		{
+			int order = mesh.order[elem_id];
+			int nodes_per_edge = order - 1;
+			const int nodes = mesh.elem_shifts[elem_id + 1] - mesh.elem_shifts[elem_id];
+
+			std::vector<int> idx(nodes);
+			for (int i = 0; i < nodes; i++)
+			{
+				idx[i] = mesh.elems[i + mesh.elem_shifts[elem_id]];
+			}
+
+			Eigen::Matrix3d J;
+
+			// | dx/d\xi	dy/d\xi     dz/d\xi   |
+			// | dx/d\eta	dy/d\eta	dz/d\eta  |	
+			// | dx/d\zeta	dy/d\zeta	dz/d\zeta |
+
+			std::vector<double> d_Nd_xi(nodes);
+			std::vector<double> d_Nd_eta(nodes);
+			std::vector<double> d_Nd_zeta(nodes);
+
+			std::vector<double> d_Nd_x(nodes);
+			std::vector<double> d_Nd_y(nodes);
+			std::vector<double> d_Nd_z(nodes);
+
+			for (int id = 0; id < nodes; id++)
+			{
+				J = mat3::Zero();
+
+				std::fill(d_Nd_xi.begin(), d_Nd_xi.end(), 0);
+				std::fill(d_Nd_eta.begin(), d_Nd_eta.end(), 0);
+				std::fill(d_Nd_zeta.begin(), d_Nd_zeta.end(), 0);
+				std::fill(d_Nd_x.begin(), d_Nd_x.end(), 0);
+				std::fill(d_Nd_y.begin(), d_Nd_y.end(), 0);
+				std::fill(d_Nd_z.begin(), d_Nd_z.end(), 0);
+
+				std::array<int, 3> point_index = pre::get_local_index(order, id);
+				for (int jd = 0; jd < nodes; jd++)
+				{
+					std::array<int, 3> shape_index = pre::get_local_index(order, jd);
+
+					d_Nd_xi[jd] =
+						shape_funcs.dl(order, shape_index[0], point_index[0]) *
+						shape_funcs.l(order, shape_index[1], point_index[1]) *
+						shape_funcs.l(order, shape_index[2], point_index[2]);
+
+					d_Nd_eta[jd] =
+						shape_funcs.l(order, shape_index[0], point_index[0]) *
+						shape_funcs.dl(order, shape_index[1], point_index[1]) *
+						shape_funcs.l(order, shape_index[2], point_index[2]);
+
+					d_Nd_zeta[jd] =
+						shape_funcs.l(order, shape_index[0], point_index[0]) *
+						shape_funcs.l(order, shape_index[1], point_index[1]) *
+						shape_funcs.dl(order, shape_index[2], point_index[2]);
+				}
+
+				// compute J
+				for (int jd = 0; jd < nodes; jd++)
+				{
+					J(0, 0) += d_Nd_xi[jd] * mesh.nodes[idx[jd]][0];
+					J(0, 1) += d_Nd_xi[jd] * mesh.nodes[idx[jd]][1];
+					J(0, 2) += d_Nd_xi[jd] * mesh.nodes[idx[jd]][2];
+
+					J(1, 0) += d_Nd_eta[jd] * mesh.nodes[idx[jd]][0];
+					J(1, 1) += d_Nd_eta[jd] * mesh.nodes[idx[jd]][1];
+					J(1, 2) += d_Nd_eta[jd] * mesh.nodes[idx[jd]][2];
+
+					J(2, 0) += d_Nd_zeta[jd] * mesh.nodes[idx[jd]][0];
+					J(2, 1) += d_Nd_zeta[jd] * mesh.nodes[idx[jd]][1];
+					J(2, 2) += d_Nd_zeta[jd] * mesh.nodes[idx[jd]][2];
+				}
+
+				double detJ = J.determinant();
+				double weight = gll::weights[order - 1][point_index[0]] *
+								gll::weights[order - 1][point_index[1]] *
+								gll::weights[order - 1][point_index[2]];
+				
+				M[dim * idx[id] + 0] += material.density * weight * std::abs(detJ);
+				M[dim * idx[id] + 1] += material.density * weight * std::abs(detJ);
+				M[dim * idx[id] + 2] += material.density * weight * std::abs(detJ);
+				
+			}
+		}
 	}
 	void createLoads(const fc& fcase, std::vector<double>& F)
 	{
@@ -464,19 +557,54 @@ namespace solver
 		}
 	}
 
-	void explicit_step(const double dt, const int dim, const std::vector<double>& M, const std::vector<double>& K, const std::vector<int>& rows, const std::vector<int>& cols, const std::vector<double>& b, std::vector<double>& x, std::vector<double>& buf, std::vector<double>& x_prev)
+
+	// first order Euler
+	/*void explicit_step(const double dt, const int dim, 
+		const std::vector<double>& M, const std::vector<double>& K, const std::vector<int>& rows, const std::vector<int>& cols, 
+		const std::vector<double>& b, std::vector<double>& u, std::vector<double>& v, std::vector<double>& buf)
 	{
+
 		int n = rows.size() - 1;
 		int nnz = rows[n];
 		const char trans = 'n';
 
-		mkl_cspblas_dbsrgemv(&trans, &n, &dim, K.data(), rows.data(), cols.data(), x.data(), buf.data());
+		mkl_cspblas_dbsrgemv(&trans, &n, &dim, K.data(), rows.data(), cols.data(), u.data(), buf.data());
 
-#pragma omp parallel for
-		for (int i = 0; i < dim * n; i++)
-		{
-			buf[i] = dt * dt * (b[i] - buf[i]) / M[i];
-			x[i] = buf[i] + x_prev[i];
+		double max_buf = *std::max_element(buf.begin(), buf.end());
+		double min_buf = *std::min_element(buf.begin(), buf.end());
+		std::cout << "max_buf_0: " << max_buf << " min_buf_0: " << min_buf << std::endl;
+
+		for (int i = 0; i < dim * n; i++) {
+			buf[i] = dt * (b[i] - buf[i]) / M[i];
+
+			u[i] += dt * v[i];
+			v[i] += dt * buf[i];
 		}
+		
+		max_buf = *std::max_element(buf.begin(), buf.end());
+		min_buf = *std::min_element(buf.begin(), buf.end());
+		std::cout << "max_buf_1: " << max_buf << " min_buf_1: " << min_buf << std::endl;
+	}*/
+
+	// Second order Symmetric
+	void explicit_step(const double dt, const int dim,
+		const std::vector<double>& M, const std::vector<double>& K, const std::vector<int>& rows, const std::vector<int>& cols,
+		const std::vector<double>& b, std::vector<double>& u, std::vector<double>& u_prev,
+		std::vector<double>& buf1, std::vector<double>& buf2)
+	{
+
+		int n = rows.size() - 1;
+		int nnz = rows[n];
+		const char trans = 'n';
+
+		mkl_cspblas_dbsrgemv(&trans, &n, &dim, K.data(), rows.data(), cols.data(), u.data(), buf1.data());
+
+		for (int i = 0; i < dim * n; i++) {
+			buf1[i] = dt * dt * (b[i] - buf1[i]) / M[i];
+			buf2[i] = u[i];
+			u[i] = buf1[i] + 2 * u[i] - u_prev[i];
+			u_prev[i] = buf2[i];
+		}
+
 	}
 }

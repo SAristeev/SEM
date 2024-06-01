@@ -9,11 +9,17 @@
 namespace solver {
 	void buildStiffnessMatrixStruct(const pre::UnstructedMesh& mesh, std::vector<int>& rows, std::vector<int>& cols);
 	void buildStiffnessMatrix(const pre::fc& fcase, std::vector<double>& K, const std::vector<int>& rows, const std::vector<int>& cols);
+
+	void buildMassMatrix(const pre::fc& fcase, std::vector<double>& M);
+
 	void createLoads(const pre::fc& fcase, std::vector<double>& F);
 	void updateLoads(const pre::fc& fcase, std::vector<double>& F, double t);
 	void applyconstraints(const pre::fc& fcase, std::vector<double>& K, const std::vector<int>& rows, const std::vector<int>& cols, std::vector<double>& F);
 
-	void explicit_step(const double dt, const int dim, const std::vector<double>& M, const std::vector<double>& K, const std::vector<int>& rows, const std::vector<int>& cols, const std::vector<double>& b, std::vector<double>& x, std::vector<double>& buf, std::vector<double>& x_prev);
+	void explicit_step(const double dt, const int dim,
+		const std::vector<double>& M, const std::vector<double>& K, const std::vector<int>& rows, const std::vector<int>& cols,
+		const std::vector<double>& b, std::vector<double>& u, std::vector<double>& u_prev,
+		std::vector<double>& buf1, std::vector<double>& buf2);
 }
 
 #endif __FEM_H__

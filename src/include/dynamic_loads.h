@@ -28,7 +28,7 @@ inline double berlage_load(double t, double A, double w)
 	double w1 = w0 / std::sqrt(3.);
 
 	return
-		A * w1 * std::exp(-1 * w1 * t) *
+		A * w1 * w1 * std::exp(-1 * w1 * t) *
 		(
 			std::sin(w0 * t) *
 				(-1 * t * t / w1 + t / (w1 * w1) + 1 / (w1 * w1 * w1))
@@ -36,6 +36,16 @@ inline double berlage_load(double t, double A, double w)
 			std::cos(w0 * t) *
 				std::sqrt(3.) * (t * t / w1 + t / (w1 * w1))
 		) / 4;
+
+	/*return
+		A * w1 * w1 * std::exp(-1 * w1 * t) *
+		(
+			std::sin(w0 * t) *
+			(-1 * t * t + t + 1) / (w1 * w1)
+			-
+			std::cos(w0 * t) *
+			std::sqrt(3.) * (t * t + t ) / (w1 * w1)
+			) / 4;*/
 }
 
 

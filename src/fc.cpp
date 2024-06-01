@@ -278,12 +278,14 @@ namespace pre {
 		{
 			std::string e_b64 = mat["elasticity"][0]["constants"][0];
 			std::string nu_b64 = mat["elasticity"][0]["constants"][1];
+			std::string dens_b64 = mat["common"][0]["constants"][0];
 
-			double E, nu;
+			double E, nu, dens;
 			base64::decode(e_b64.data(), e_b64.size(), reinterpret_cast<char*>(&E));
 			base64::decode(nu_b64.data(), nu_b64.size(), reinterpret_cast<char*>(&nu));
+			base64::decode(dens_b64.data(), dens_b64.size(), reinterpret_cast<char*>(&dens));
 
-			materials.emplace_back(mat_id, mat_id, E, nu);
+			materials.emplace_back(mat_id, mat_id, E, nu, dens);
 
 			matid_threshold_map[mat["id"]] = mat_id;
 			mat_id++;
