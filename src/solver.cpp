@@ -24,12 +24,19 @@ namespace solver{
 		std::vector<double> F;
 		createLoads(fcase, F);
 
-		// constrants (Dirichlet BC)
-		applyconstraints(fcase, K, rows, cols, F);
+		for (auto& constraint : fcase.restraints)
+		{
+			for (auto& x : constraint.apply_to)
+			{
+				std::cout << x << " ";
+			}
+			std::cout << std::endl;
+		}
 
 		std::vector<double> u(problem_size, 0);
 		if (fcase.type == eDynamic) 
 		{
+			std::cout << "Start Dynamic" << std::endl;
 			std::vector<double> u_prev(problem_size, 0);
 			// specific for Spectral elements
 			std::vector<double> M(problem_size, 0);
@@ -40,11 +47,12 @@ namespace solver{
 			// TODO compute dt from Courant Number
 			std::vector<double> time_steps;
 			double t = 0;
-			double dt = 1.95104799e-06;
-			int max_iters = 500;
+			double dt = 2.93698551e-03;
+			int max_iters = 150;
 			
 			// save init
 			post::export2vtk(fcase.computational_mesh, u, dir / std::string(filename + "_0.vtu"));
+
 
 			// if explicit
 			if(1){		
@@ -60,9 +68,10 @@ namespace solver{
 					
 					
 					updateLoads(fcase, F, t);
-
 					explicit_step(dt, fcase.dim, M, K, rows, cols, F, u, u_prev, buf1, buf2);
-					
+					updateconstraints(fcase, u);
+					updateconstraints(fcase, u_prev);
+
 					double max_F = *std::max_element(F.begin(), F.end());
 					double min_F = *std::min_element(F.begin(), F.end());
 
@@ -89,6 +98,9 @@ namespace solver{
 			post::collect_steps(dir, filename, time_steps);
 		}
 		else {
+			// constrants (Dirichlet BC)
+			applyconstraints(fcase, K, rows, cols, F);
+
 			algebra::solve_pardiso(fcase.dim, K, rows, cols, 1, F, u);
 			post::export2vtk(fcase.computational_mesh, u, dir / std::string(filename + ".vtu"));
 		}

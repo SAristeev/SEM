@@ -175,7 +175,7 @@ namespace pre
 				}
 				break;
 			case 1:
-				if (loc[1] == order - 1) {
+				if (loc[1] == order) {
 					face_idxs[id] = i;
 					id++;
 				}
@@ -187,7 +187,7 @@ namespace pre
 				}
 				break;
 			case 3:
-				if (loc[0] == order - 1) {
+				if (loc[0] == order) {
 					face_idxs[id] = i;
 					id++;
 				}
@@ -199,7 +199,7 @@ namespace pre
 				}
 				break;
 			case 5:
-				if (loc[2] == order - 1) {
+				if (loc[2] == order) {
 					face_idxs[id] = i;
 					id++;
 				}

@@ -17,12 +17,20 @@ namespace pre {
 		if (original_mesh.spectral_elems) {
 			std::array<std::array<int, 8>, 6> face_mask;
 			{
+				/*
 				face_mask[0] = { 0, 3, 4, 7, 11, 16, 15, 19 };
 				face_mask[1] = { 1, 2, 5, 6, 9, 13, 15, 17 };
 				face_mask[2] = { 0, 1, 4, 5, 8, 12, 16, 17 };
 				face_mask[3] = { 2, 3, 6, 7, 10, 14, 18, 19 };
 				face_mask[4] = { 0, 1, 2, 3, 8, 9, 10, 11};
 				face_mask[5] = { 4, 6, 7, 8, 12, 13, 14, 15};
+				*/
+				face_mask[0] = { 0, 3, 4, 7, 11, 15, 16, 19 };
+				face_mask[1] = { 1, 2, 5, 6, 9, 13, 17, 1 };
+				face_mask[2] = { 0, 1, 4, 5, 8, 12, 16, 17 };
+				face_mask[3] = { 2, 3, 6, 7, 10, 14, 18, 19 };
+				face_mask[4] = { 0, 1, 2, 3, 8, 9, 10, 11 };
+				face_mask[5] = { 4, 5, 6, 7, 12, 13, 14, 15 };
 			}
 
 			// elem, loc_id
@@ -36,36 +44,73 @@ namespace pre {
 			{
 				for (int point = original_mesh.elem_shifts[elem_id]; point < original_mesh.elem_shifts[elem_id + 1]; point++) 
 				{
-					for (int i = 0; i < apply_to.size(); i++) 
+					auto find = std::find(apply_to.begin(), apply_to.end(), original_mesh.elems[point]);
+					if (find != apply_to.end())
 					{
-						auto find = std::find(apply_to.begin(), apply_to.end(), original_mesh.elems[point]);
-						if (find != apply_to.end()) 
+						for (int i = 0; i < apply_to.size(); i++)
 						{
 							auto unique = std::find(apply_to_map[elem_id].begin(), apply_to_map[elem_id].end(), original_mesh.elems[point]);
 							if (unique == apply_to_map[elem_id].end())
 							{
-								apply_to_map[elem_id].push_back(*find);
+								apply_to_map[elem_id].push_back(original_mesh.elems[point]);
 							}
 						}
 					}
 				}
 			}
+
 			std::vector<int> new_apply_to;
+
 			for (int elem_id = 0; elem_id < original_mesh.elemids.size(); elem_id++) 
 			{
 				if(apply_to_map[elem_id].size() >= 8) 
 				{
-					for (int face = 0; face < 6; face++) 
+					for (int face = 0; face < 6; face++)
 					{
 						std::array<bool, 8> finded = {false, false, false, false, false, false, false, false };
 						for(int point = 0; point < 8; point++)
 						{
-							finded[point] = std::find(apply_to_map[elem_id].begin(), apply_to_map[elem_id].end(), original_mesh.elems[original_mesh.elem_shifts[elem_id] + face_mask[face][point]]) == apply_to_map[elem_id].end();
+							finded[point] = std::find(apply_to_map[elem_id].begin(), apply_to_map[elem_id].end(), original_mesh.elems[original_mesh.elem_shifts[elem_id] + face_mask[face][point]]) != apply_to_map[elem_id].end();
 						}
 						if (std::find(finded.begin(), finded.end(), false) == finded.end()) 
 						{
+							int natural_face = 0;
 							std::vector<int> tmp;
-							get_face(original_mesh.order[elem_id], face, tmp);
+							for (int i = 0; i < 6; i++) 
+							{
+								vec3 p1_o = original_mesh.nodes[original_mesh.elems[original_mesh.elem_shifts[elem_id] + face_mask[face][0]]];
+								vec3 p2_o = original_mesh.nodes[original_mesh.elems[original_mesh.elem_shifts[elem_id] + face_mask[face][1]]];
+								vec3 p3_o = original_mesh.nodes[original_mesh.elems[original_mesh.elem_shifts[elem_id] + face_mask[face][2]]];
+								vec3 p4_o = original_mesh.nodes[original_mesh.elems[original_mesh.elem_shifts[elem_id] + face_mask[face][3]]];
+								std::vector<vec3> p_o = {p1_o, p2_o, p3_o, p4_o };
+								get_face(original_mesh.order[elem_id], i, tmp);
+
+								vec3 p1_ñ = computational_mesh.nodes[computational_mesh.elems[computational_mesh.elem_shifts[elem_id] + tmp[0]]];
+								vec3 p2_ñ = computational_mesh.nodes[computational_mesh.elems[computational_mesh.elem_shifts[elem_id] + tmp[1]]];
+								vec3 p3_ñ = computational_mesh.nodes[computational_mesh.elems[computational_mesh.elem_shifts[elem_id] + tmp[2]]];
+								vec3 p4_ñ = computational_mesh.nodes[computational_mesh.elems[computational_mesh.elem_shifts[elem_id] + tmp[3]]];
+								
+								std::vector<vec3> p_c = { p1_ñ, p2_ñ, p3_ñ, p4_ñ };
+								std::vector<int> mask(4, -1);
+								for (int j = 0; j < 4; j++) 
+								{
+									for (int k = 0; k < 4; k++) 
+									{
+										if ((p_o[j] - p_c[k]).norm() < 1e-15) 
+										{
+											mask[j] = k;
+										}
+									}
+								}
+								if (std::find(mask.begin(), mask.end(), -1) == mask.end()) 
+								{
+									natural_face = i;
+									break;
+								}
+							}
+							
+
+							get_face(original_mesh.order[elem_id], natural_face, tmp);
 							for (int i = 0; i < tmp.size(); i++) 
 							{
 								int to_add = computational_mesh.elems[computational_mesh.elem_shifts[elem_id] + tmp[i]];
@@ -82,6 +127,7 @@ namespace pre {
 			apply_to = new_apply_to;
 		}
 	}
+
 	void BC::node_mapping(const UnstructedMesh& original_mesh, const UnstructedMesh& computational_mesh) 
 	{
 		for (int i = 0; i < apply_to.size(); i++)

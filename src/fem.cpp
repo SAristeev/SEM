@@ -52,6 +52,7 @@ namespace solver
 	}
 
 	void buildStiffnessMatrix(const fc& fcase, std::vector<double>& K, const std::vector<int>& rows, const std::vector<int>& cols) {
+		std::cout << "buildStiffnessMatrix. Start"<< std::endl;
 		gll::shape& shape_funcs = gll::shape::getInstance();
 		const int& dim = fcase.dim;
 		assert(dim == 3);
@@ -232,7 +233,7 @@ namespace solver
 			/*Eigen::FullPivLU<Eigen::MatrixXd> lu_decomp(A);
 			auto rank = lu_decomp.rank();
 			std::cout << "elem_id = " << elem_id << " rank = " << rank << " size = " << Bcols << std::endl;*/
-
+			std::cout << "elem_id = " << elem_id << std::endl;
 			for (int id = 0; id < nodes; id++)
 			{
 				std::vector<int> glob_index(nodes);
@@ -420,6 +421,7 @@ namespace solver
 				}
 			}
 		}
+		std::cout << "buildStiffnessMatrix. Stop" << std::endl;
 	}
 
 	void updateLoads(const fc& fcase, std::vector<double>& F, double t)
@@ -557,6 +559,37 @@ namespace solver
 		}
 	}
 
+	void updateconstraints(const fc& fcase, std::vector<double>& u)
+	{
+		int dim = fcase.dim;
+		assert(dim == 3);
+		for (auto& constraint : fcase.restraints)
+		{
+			int coordinate = -1;
+			for (int i = 0; i < 6; i++) {
+				if (i >= 3 && constraint.flag[i] != false)
+				{
+					std::cout << "Found unsupported pivot constraint. Ignore " << std::endl;
+				}
+			}
+
+			for (int node : constraint.apply_to)
+			{
+				if (constraint.flag[0])
+				{
+					u[dim * node + 0] = constraint.data[0];
+				}
+				if (constraint.flag[1])
+				{
+					u[dim * node + 1] = constraint.data[1];
+				}
+				if (constraint.flag[2])
+				{
+					u[dim * node + 2] = constraint.data[2];
+				}
+			}
+		}
+	}
 
 	// first order Euler
 	/*void explicit_step(const double dt, const int dim, 
