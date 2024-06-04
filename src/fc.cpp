@@ -128,7 +128,7 @@ namespace pre {
 		}
 	}
 
-	void BC::node_mapping(const UnstructedMesh& original_mesh, const UnstructedMesh& computational_mesh) 
+	void BC::node_mapping(const UnstructedMesh& original_mesh, const UnstructedMesh& computational_mesh)
 	{
 		for (int i = 0; i < apply_to.size(); i++)
 		{
@@ -141,6 +141,18 @@ namespace pre {
 			else
 			{
 				apply_to[i] = find - computational_mesh.nodes.begin();
+			}
+		}
+
+	}
+
+	void BC::elem_mapping(const UnstructedMesh& original_mesh, const UnstructedMesh& computational_mesh)
+	{
+		for (int i = 0; i < apply_to.size(); i++)
+		{
+			if (i % 2 == 0) 
+			{
+				apply_to[i] = original_mesh.map_element_numeration.at(apply_to[i]);
 			}
 		}
 
@@ -293,6 +305,7 @@ namespace pre {
 
 	fc::fc(std::filesystem::path file)
 	{
+		std::cout << "Start reading FC" << std::endl;
 		std::ifstream filestream(file, std::ios::in);
 		if (!filestream)
 		{
@@ -318,6 +331,14 @@ namespace pre {
 			type = ploblem_type::eDynamic;
 		}
 
+		// dynamic settings
+
+		{
+			d_settings.courant = fc_file["settings"]["dynamics"]["courant"];
+			d_settings.max_iters = fc_file["settings"]["dynamics"]["max_steps_count"];
+			d_settings.max_time = fc_file["settings"]["dynamics"]["max_time"];
+		}
+		
 		// materials
 		unsigned int mat_id = 1;
 		for (auto& mat : fc_file["materials"])
@@ -348,7 +369,7 @@ namespace pre {
 			thresholds.push_back(imap.second);
 		}
 
-		
+		std::cout << "Reading mesh" << std::endl;
 		// mesh		
 
 		size_t elems_count = fc_file["mesh"]["elems_count"];
@@ -394,7 +415,8 @@ namespace pre {
 				}
 				offset += 8;
 				// cells with difficult cell types unsupported
-				assert(!original_mesh.spectral_elems);
+				//assert(!original_mesh.spectral_elems);
+				original_mesh.spectral_elems = false;
 			}
 			else if (original_mesh.elem_type[elem_id] == '\x4')
 			{
@@ -420,15 +442,19 @@ namespace pre {
 		}
 		else
 		{
+			std::cout << "Spectral refinement" << std::endl;
 			//computational_mesh.elemids = original_mesh.elemids;
 			computational_mesh.spectral_elems = true;
 			computational_mesh.elem_type = original_mesh.elem_type;
 			computational_mesh.order = original_mesh.order;
 			computational_mesh.elem_shifts.resize(computational_mesh.elem_type.size() + 1);
 			int offset_sem = 0;
+			std::cout << "Current status: " << std::endl;
 			// remeshing
 			for (int elem_id = 0; elem_id < elems_count; elem_id++)
 			{
+				if(elems_count > 100 && elem_id % (elems_count / 100) == 0)
+					std::cout << 100 * double(elem_id) / double(elems_count) << " ";
 				computational_mesh.elem_shifts[elem_id] = offset_sem;
 				assert(computational_mesh.elem_type[elem_id] == '\x4');
 				add_spectral_elem(elem_id);
@@ -437,8 +463,10 @@ namespace pre {
 				offset_sem += nodes3;
 			}
 			computational_mesh.elem_shifts[elems_count] = offset_sem;
+			std::cout << std::endl;
 		}
 
+		std::cout << "Read BC" << std::endl;
 		// loads
 		for (auto& load : fc_file["loads"])
 		{
@@ -456,56 +484,62 @@ namespace pre {
 			{
 				bc.node_mapping(original_mesh, computational_mesh);
 				data_size = 6;
+				for (int i = 0; i < data_size; i++)
+				{
+					std::string data_b64 = load["data"][i];
+					bc.data.push_back(0.);
+					bc.types.push_back({});
+					if (type == ploblem_type::eDynamic)
+					{
+						std::string data = load["data"][i];
+						std::string& name = bc.types[i].name;
+						std::vector<double>& parameters = bc.types[i].param;
+						auto parse = [&](const std::string& input) {
+
+							// Извлекаем коэффициент
+							std::stringstream preBracketStream(input);
+							preBracketStream >> bc.data[i];
+
+							size_t stBracketPos = input.find('(');
+							size_t fiBracketPos = input.find_last_of(')');
+
+							std::string dynamic = input.substr(stBracketPos + 1, fiBracketPos - stBracketPos - 1);
+
+							stBracketPos = dynamic.find('(');
+							fiBracketPos = dynamic.find_last_of(')');
+
+							name = dynamic.substr(0, stBracketPos);
+
+							std::stringstream paramsStream(dynamic.substr(stBracketPos + 1, fiBracketPos - stBracketPos - 1));
+							double param;
+							while (paramsStream >> param) {
+								parameters.push_back(param);
+								if (paramsStream.peek() == ',')
+									paramsStream.ignore();
+							}
+
+							};
+						parse(data);
+
+					}
+					else
+					{
+						base64::decode(data_b64.data(), data_b64.size(), reinterpret_cast<char*>(&bc.data[i]));
+					}
+
+
+				}
+			}
+			else if (bc.name == "absorption")
+			{
+				bc.elem_mapping(original_mesh, computational_mesh);
+				data_size = 0;
 			}
 			else
 			{
 				throw std::runtime_error("not Force or Pressure load. Not supported yet");
 			}
-			for (int i = 0; i < data_size; i++)
-			{
-				std::string data_b64 = load["data"][i];
-				bc.data.push_back(0.);
-				bc.types.push_back({});
-				if (type == ploblem_type::eDynamic)
-				{
-					std::string data = load["data"][i];
-					std::string& name = bc.types[i].name;
-					std::vector<double>& parameters = bc.types[i].param;
-					auto parse = [&](const std::string& input) {
-
-						// Извлекаем коэффициент
-						std::stringstream preBracketStream(input);
-						preBracketStream >> bc.data[i];
-
-						size_t stBracketPos = input.find('(');
-						size_t fiBracketPos = input.find_last_of(')');
-
-						std::string dynamic = input.substr(stBracketPos + 1, fiBracketPos - stBracketPos - 1);
-						
-						stBracketPos = dynamic.find('(');
-						fiBracketPos = dynamic.find_last_of(')');
-
-						name = dynamic.substr(0, stBracketPos);
-
-						std::stringstream paramsStream(dynamic.substr(stBracketPos + 1, fiBracketPos - stBracketPos - 1));
-						double param;
-						while (paramsStream >> param) {
-							parameters.push_back(param);
-							if (paramsStream.peek() == ',')
-								paramsStream.ignore();
-						}
-
-					};
-					parse(data);
-
-				}
-				else
-				{
-					base64::decode(data_b64.data(), data_b64.size(), reinterpret_cast<char*>(&bc.data[i]));
-				}
-				
-				
-			}
+			
 
 		}
 

@@ -15,6 +15,7 @@ namespace solver
 	using namespace pre;
 	void buildStiffnessMatrixStruct(const UnstructedMesh& mesh, std::vector<int>& rows, std::vector<int>& cols)
 	{
+		std::cout << "Builg Graph connectivity" << std::endl;
 		const std::vector<int>& shifts = mesh.elem_shifts;
 		size_t elems_size = mesh.elem_type.size();
 		size_t n = mesh.nodes.size();
@@ -52,7 +53,7 @@ namespace solver
 	}
 
 	void buildStiffnessMatrix(const fc& fcase, std::vector<double>& K, const std::vector<int>& rows, const std::vector<int>& cols) {
-		std::cout << "buildStiffnessMatrix. Start"<< std::endl;
+		std::cout << "Building Stiffnes matrix"<< std::endl;
 		gll::shape& shape_funcs = gll::shape::getInstance();
 		const int& dim = fcase.dim;
 		assert(dim == 3);
@@ -230,10 +231,7 @@ namespace solver
 			}
 
 
-			/*Eigen::FullPivLU<Eigen::MatrixXd> lu_decomp(A);
-			auto rank = lu_decomp.rank();
-			std::cout << "elem_id = " << elem_id << " rank = " << rank << " size = " << Bcols << std::endl;*/
-			std::cout << "elem_id = " << elem_id << std::endl;
+			
 			for (int id = 0; id < nodes; id++)
 			{
 				std::vector<int> glob_index(nodes);
@@ -263,6 +261,7 @@ namespace solver
 	}
 
 	void buildMassMatrix(const fc& fcase, std::vector<double>& M) {
+		std::cout << "Building Mass matrix" << std::endl;
 		gll::shape& shape_funcs = gll::shape::getInstance();
 		const int& dim = fcase.dim;
 		assert(dim == 3);
@@ -421,7 +420,7 @@ namespace solver
 				}
 			}
 		}
-		std::cout << "buildStiffnessMatrix. Stop" << std::endl;
+		
 	}
 
 	void updateLoads(const fc& fcase, std::vector<double>& F, double t)
@@ -453,6 +452,8 @@ namespace solver
 			}
 		}
 	}
+
+	
 
 	void applyconstraints(const fc& fcase, std::vector<double>& K, const std::vector<int>& rows, const std::vector<int>& cols, std::vector<double>& F)
 	{
@@ -559,6 +560,108 @@ namespace solver
 		}
 	}
 
+	static boundary_indexes bound;
+	void update_absorption(const fc& fcase, std::vector<double>& F,const std::vector<double>& velocity, const std::vector<double>& u)
+	{
+		gll::shape& shape_funcs = gll::shape::getInstance();
+		const material_t& mat = fcase.materials[0];
+
+		double alpha = std::sqrt((mat.lambda + 2 * mat.mu) / mat.density);
+		double beta = std::sqrt(mat.mu / mat.density);
+
+		const UnstructedMesh& mesh = fcase.computational_mesh;
+		int dim = fcase.dim;
+		for (auto& load: fcase.loads) 
+		{
+			if (load.name == "absorption") 
+			{
+				for (int i = 0; i < load.apply_to.size() / 2; i++) 
+				{
+					
+					int elem = load.apply_to[2 * i];
+					int face = load.apply_to[2 * i + 1];
+					int order = mesh.order[elem];
+					std::vector<int> face_idxs;
+					
+
+					get_face(order, face, face_idxs);
+
+					std::array<int, 4> face_4 = bound.faces[face];
+					int sign = face % 2 == 0 ? -1 : 1;
+
+					vec3 p0 = mesh.nodes[mesh.elems[mesh.elem_shifts[elem] + face_4[0]]];
+					vec3 p1 = mesh.nodes[mesh.elems[mesh.elem_shifts[elem] + face_4[1]]];
+					vec3 p2 = mesh.nodes[mesh.elems[mesh.elem_shifts[elem] + face_4[2]]];
+
+					vec3 v1 = p1 - p0;
+					vec3 v2 = p2 - p0;
+
+					vec3 n = sign * v1.cross(v2);
+					n /= n.norm();
+
+					// to integrate with gll
+					std::vector<vec3> to_integrate(face_idxs.size());
+					for (int i = 0; i < face_idxs.size(); i++)
+					{
+						int point = mesh.elems[mesh.elem_shifts[elem] + face_idxs[i]];
+						double tmp[3] = { velocity[dim * point + 0], velocity[dim * point + 1], velocity[dim * point + 2] };
+						vec3 v = { tmp[0], tmp[1], tmp[2] };
+						vec3 vn = n * v.dot(n);
+						vec3 vr = v - vn;
+						
+						to_integrate[i] = -mat.density * (alpha * vn + beta * vr) ;
+						
+						
+					}
+					
+					
+					std::array<bool, 3> mask = {true, true, true};
+
+					for (int i = 1; i < face_idxs.size(); i++)
+					{
+						std::array<int, 3> loc_id = get_local_index(mesh.order[elem], face_idxs[i]);
+						std::array<int, 3> loc_prev = get_local_index(mesh.order[elem], face_idxs[i - 1]);
+						mask[0] = mask[0] && loc_id[0] == loc_prev[0];
+						mask[1] = mask[1] && loc_id[1] == loc_prev[1];
+						mask[2] = mask[2] && loc_id[2] == loc_prev[2];
+					}
+					int skip_id = 0;
+					for (int i = 0; i < 3; i++) 
+					{
+						skip_id = mask[i] ? i : skip_id;
+					}
+					int id0 = (skip_id + 1) % 3;
+					int id1 = (skip_id + 2) % 3;
+
+					vec3 res = vec3::Zero();
+					for (int i = 0; i < face_idxs.size(); i++)
+					{
+						std::array<int, 3> loc_id = get_local_index(mesh.order[elem], face_idxs[i]);
+						res += gll::weights[order - 1][loc_id[id0]] * gll::weights[order - 1][loc_id[id1]] * to_integrate[i];
+					}
+					
+
+					
+					for (int i = 0; i < face_idxs.size(); i++) 
+					{
+						int point = mesh.elems[mesh.elem_shifts[elem] + face_idxs[i]];
+						double tmp[3] = { velocity[dim * point + 0], velocity[dim * point + 1], velocity[dim * point + 2] };
+						vec3 v = { tmp[0], tmp[1], tmp[2] };
+						//F[3 * point + 0] += res[0];
+						//F[3 * point + 1] += res[1];
+						//F[3 * point + 2] += res[2];
+					
+						F[3 * point + 0] += to_integrate[i][0];
+						F[3 * point + 1] += to_integrate[i][1];
+						F[3 * point + 2] += to_integrate[i][2];
+							
+						
+					}
+				}
+			}
+		}
+	}
+
 	void updateconstraints(const fc& fcase, std::vector<double>& u)
 	{
 		int dim = fcase.dim;
@@ -622,22 +725,35 @@ namespace solver
 	// Second order Symmetric
 	void explicit_step(const double dt, const int dim,
 		const std::vector<double>& M, const std::vector<double>& K, const std::vector<int>& rows, const std::vector<int>& cols,
-		const std::vector<double>& b, std::vector<double>& u, std::vector<double>& u_prev,
-		std::vector<double>& buf1, std::vector<double>& buf2)
+		const std::vector<double>& b, 
+		std::vector<double>& u_prev, std::vector<double>& u, std::vector<double>& u_next,
+		std::vector<double>& Au)
 	{
 
 		int n = rows.size() - 1;
 		int nnz = rows[n];
 		const char trans = 'n';
 
-		mkl_cspblas_dbsrgemv(&trans, &n, &dim, K.data(), rows.data(), cols.data(), u.data(), buf1.data());
+		mkl_cspblas_dbsrgemv(&trans, &n, &dim, K.data(), rows.data(), cols.data(), u.data(), Au.data());
 
 		for (int i = 0; i < dim * n; i++) {
-			buf1[i] = dt * dt * (b[i] - buf1[i]) / M[i];
-			buf2[i] = u[i];
-			u[i] = buf1[i] + 2 * u[i] - u_prev[i];
-			u_prev[i] = buf2[i];
+			Au[i] = dt * dt * (b[i] - Au[i]) / M[i];
+			u_next[i] = Au[i] + 2 * u[i] - u_prev[i];
 		}
 
+	}
+	void compute_velocity(const double dt, const int dim, std::vector<double>& v, const std::vector<double>& u_prev, const std::vector<double>& u, const std::vector<double>& u_next)
+	{
+		assert(v.size() != 0);
+		for (int i = 0; i < v.size(); i++) {
+			v[i] = (u_next[i] - u_prev[i]) / (2 * dt);
+		}
+	}
+	void compute_acceleration(const double dt, const int dim, std::vector<double>& a, const std::vector<double>& u_prev, const std::vector<double>& u, const std::vector<double>& u_next)
+	{
+		assert(a.size() != 0);
+		for (int i = 0; i < a.size(); i++) {
+			a[i] = (u_next[i] - 2 * u[i] + u_prev[i]) / (dt * dt);
+		}
 	}
 }

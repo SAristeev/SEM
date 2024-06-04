@@ -14,7 +14,15 @@ namespace pre {
 		eStatic,
 		eDynamic
 	};
+
 	using namespace types;
+
+	struct dynamics_settings
+	{
+		double courant;
+		int max_iters;
+		double max_time;
+	};
 
 	struct parametic_points
 	{
@@ -36,12 +44,18 @@ namespace pre {
 
 	struct material_t
 	{
-		material_t(unsigned char _id, int _threshold, double _E, double _nu, double _density) :id(_id), threshold(_threshold), E(_E), nu(_nu), density(_density) {};
+		material_t(unsigned char _id, int _threshold, double _E, double _nu, double _density) :id(_id), threshold(_threshold), E(_E), nu(_nu), density(_density) 
+		{
+			lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
+			mu = E / (2 * (1 + nu));
+		};
 		unsigned char id;
 		int threshold;
 
 		double E;
 		double nu;
+		double lambda;
+		double mu;
 		double density;
 	};
 
@@ -85,6 +99,7 @@ namespace pre {
 		std::vector<std::pair<int, int>> elem2face;
 		void from_nodeset(const UnstructedMesh& original_mesh, const UnstructedMesh& computational_mesh);
 		void node_mapping(const UnstructedMesh& original_mesh, const UnstructedMesh& computational_mesh);
+		void elem_mapping(const UnstructedMesh& original_mesh, const UnstructedMesh& computational_mesh);
 
 		
 		
@@ -107,7 +122,8 @@ namespace pre {
 
 		std::vector<BC> restraints;
 		std::vector<BC> loads;
-
+		
+		dynamics_settings d_settings;
 		fc(std::filesystem::path path);
 	private:
 		void add_spectral_elem(int elem_id);

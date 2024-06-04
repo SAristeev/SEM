@@ -15,7 +15,7 @@
 #include <vtkXMLUnstructuredGridWriter.h>
 
 namespace post {
-	void export2vtk(const pre::UnstructedMesh& mesh,const std::vector<double>& results, const std::filesystem::path& filename)
+	void export2vtk(const pre::UnstructedMesh& mesh,const std::vector<double>& u, const std::vector<double>& v, const std::vector<double>& F, const std::filesystem::path& filename)
 	{		
 		vtkNew<vtkUnstructuredGrid> unstructuredGrid;
 		
@@ -24,21 +24,38 @@ namespace post {
 
 		// points
 		vtkNew<vtkPoints> points;
-		vtkNew<vtkDoubleArray> dataArray;
-		dataArray->SetName("Displacement");
-		dataArray->SetNumberOfComponents(3);
-		dataArray->SetNumberOfTuples(mesh.nodes.size());
+		vtkNew<vtkDoubleArray> u_array;
+		vtkNew<vtkDoubleArray> v_array;
+		vtkNew<vtkDoubleArray> F_array;
+
+		u_array->SetName("Displacement");
+		u_array->SetNumberOfComponents(3);
+		u_array->SetNumberOfTuples(mesh.nodes.size());
+
+		v_array->SetName("Velocity");
+		v_array->SetNumberOfComponents(3);
+		v_array->SetNumberOfTuples(mesh.nodes.size());
+
+		F_array->SetName("F");
+		F_array->SetNumberOfComponents(3);
+		F_array->SetNumberOfTuples(mesh.nodes.size());
 
 		for (int node = 0; node < mesh.nodes.size(); node++)
 		{
 			points->InsertNextPoint(mesh.nodes[node][0], mesh.nodes[node][1], mesh.nodes[node][2]);
-			double tuple[3] = { results[3 * node], results[3 * node + 1], results[3 * node + 2] };
-			dataArray->SetTuple(node, tuple);
+			double tuple_u[3] = { u[3 * node], u[3 * node + 1], u[3 * node + 2] };
+			double tuple_v[3] = { v[3 * node], v[3 * node + 1], v[3 * node + 2] };
+			double tuple_F[3] = { F[3 * node], F[3 * node + 1], F[3 * node + 2] };
+			u_array->SetTuple(node, tuple_u);
+			v_array->SetTuple(node, tuple_v);
+			F_array->SetTuple(node, tuple_F);
 		}
 	
 
 		unstructuredGrid->SetPoints(points);
-		unstructuredGrid->GetPointData()->AddArray(dataArray);
+		unstructuredGrid->GetPointData()->AddArray(u_array);
+		unstructuredGrid->GetPointData()->AddArray(v_array);
+		unstructuredGrid->GetPointData()->AddArray(F_array);
 
 		// elems
 		 
@@ -86,7 +103,7 @@ namespace post {
 		writer->Write();
 
 	}
-	void collect_steps(const std::filesystem::path& dir, const std::string& filename, const std::vector<double>& time_steps)
+	void collect_steps(const std::filesystem::path& dir, const std::string& filename, const std::vector<int>& int_steps, const std::vector<double>& time_steps)
 	{
 		std::ofstream pvd_file;
 		std::string full_name = filename + ".pvd";
@@ -101,7 +118,7 @@ namespace post {
 				<< time_steps[i] << "\" step=\""
 				<< i
 				<< "\" file=\""
-				<< std::string(filename + "_" + std::to_string(i) + ".vtu\"/>\n");
+				<< std::string(filename + "_" + std::to_string(int_steps[i]) + ".vtu\"/>\n");
 
 		};
 		pvd_file << "  </Collection>\n";
