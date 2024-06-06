@@ -364,7 +364,7 @@ namespace solver
 	}
 	void createLoads(const fc& fcase, std::vector<double>& F)
 	{
-		std::unordered_map<int, int> freq;
+	
 		gll::shape& shape_funcs = gll::shape::getInstance();
 		const int& dim = fcase.dim;
 		const UnstructedMesh& mesh = fcase.computational_mesh;
@@ -519,22 +519,16 @@ namespace solver
 						double weight = gll::weights[order - 1][point_index[loc_id_t1]] *
 							gll::weights[order - 1][point_index[loc_id_t2]];
 
-						F[dim * idx[id] + 0] += weight * inner_norm[0] * std::abs(detJ);
-						F[dim * idx[id] + 1] += weight * inner_norm[1] * std::abs(detJ);
-						F[dim * idx[id] + 2] += weight * inner_norm[2] * std::abs(detJ);
-						freq[idx[id]]++;
+						F[dim * idx[id] + 0] += weight * pressure[0] * std::abs(detJ);
+						F[dim * idx[id] + 1] += weight * pressure[1] * std::abs(detJ);
+						F[dim * idx[id] + 2] += weight * pressure[2] * std::abs(detJ);
+						
 						}
 					
 				}
 			}
 		}
-		
-		/*for(auto pair: freq)
-		{
-			F[dim * pair.first + 0] /= pair.second;
-			F[dim * pair.first + 1] /= pair.second;
-			F[dim * pair.first + 2] /= pair.second;
-		}*/
+	
 	}
 
 	void updateLoads(const fc& fcase, std::vector<double>& F, double t)
