@@ -71,7 +71,7 @@ namespace pre {
 		std::vector<int>          elems;
 		// shifts of elems
 		std::vector<int>          elem_shifts;
-
+		std::array<double, 6>	mesh_bounds;
 		// elems parameters 
 		std::vector<int>          elemids;
 		std::vector<uint8_t>      elem_type;

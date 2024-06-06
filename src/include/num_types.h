@@ -7,7 +7,9 @@
 
 namespace types {
 	using vec3 = Eigen::Vector3d;
+	using vecd = Eigen::VectorXd;
 	using mat3 = Eigen::Matrix3d;
+	using mat2 = Eigen::Matrix2d;
 	using matd = Eigen::MatrixXd;
 }
 

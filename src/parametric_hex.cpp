@@ -157,6 +157,28 @@ namespace pre
 		return indx_map.container[order - 1][i];
 	}
 
+	vec3 get_outer_normal(int face_id)
+	{
+		switch (face_id)
+		{
+		case 0:
+			return { 0, -1, 0 };
+		case 1:
+			return { 0, 1, 0 };
+		case 2:
+			return { -1, 0, 0 };
+		case 3:
+			return { 1, 0, 0 };
+		case 4:
+			return { 0, 0, -1 };
+		case 5:	  
+			return { 0, 0, 1 };
+		default:
+			assert(0);
+			break;
+		}
+	}
+
 	void get_face(int order, int face_id, std::vector<int>& face_idxs) 
 	{
 		int nodes3 = (order + 1) * (order + 1) * (order + 1);

@@ -13,7 +13,10 @@ namespace pre {
 
 	void BC::from_nodeset(const UnstructedMesh& original_mesh, const UnstructedMesh& computational_mesh)
 	{
-
+		for (int i = 0; i < apply_to.size(); i++)
+		{
+			apply_to[i] = original_mesh.map_node_numeration.at(apply_to[i]);
+		}
 		if (original_mesh.spectral_elems) {
 			std::array<std::array<int, 8>, 6> face_mask;
 			{
@@ -35,10 +38,7 @@ namespace pre {
 
 			// elem, loc_id
 			std::map<int, std::vector<int>> apply_to_map;
-			for (int i = 0; i < apply_to.size(); i++) 
-			{
-				apply_to[i] = original_mesh.map_node_numeration.at(apply_to[i]);
-			}
+			
 
 			for (int elem_id = 0; elem_id < original_mesh.elemids.size(); elem_id++) 
 			{
@@ -333,7 +333,7 @@ namespace pre {
 
 		// dynamic settings
 
-		{
+		if(type == ploblem_type::eDynamic){
 			d_settings.courant = fc_file["settings"]["dynamics"]["courant"];
 			d_settings.max_iters = fc_file["settings"]["dynamics"]["max_steps_count"];
 			d_settings.max_time = fc_file["settings"]["dynamics"]["max_time"];
@@ -436,6 +436,8 @@ namespace pre {
 		}
 		original_mesh.elem_shifts[elems_count] = offset;
 		
+
+		
 		if(!original_mesh.spectral_elems)
 		{
 			computational_mesh = original_mesh;
@@ -478,7 +480,11 @@ namespace pre {
 			int data_size;
 			if (bc.name == "Pressure")
 			{
+				bc.elem_mapping(original_mesh, computational_mesh);
 				data_size = 1;
+				std::string data_b64 = load["data"][0];
+				bc.data.resize(1);
+				base64::decode(data_b64.data(), data_b64.size(), reinterpret_cast<char*>(&bc.data[0]));
 			}
 			else if (bc.name == "Force")
 			{

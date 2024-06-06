@@ -2,7 +2,9 @@
 #ifndef __GLL_H__
 #define __GLL_H__
 
+#include "fc.h"
 #include <vector>
+
 // Gauss-Legendre-Lobatto points and weights
 // https://keisan.casio.jp/exec/system/1331182061
 

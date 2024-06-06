@@ -4,6 +4,7 @@
 
 namespace gll
 {
+	using namespace pre;
 	// derivative[j][point]
 	shape::shape()
 	{
@@ -46,4 +47,6 @@ namespace gll
 		assert(order + 1< gll::max_p);
 		return (shape_index == point_index) ? 1. : 0.;
 	}
+
+	
 }

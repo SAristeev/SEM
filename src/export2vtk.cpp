@@ -15,7 +15,7 @@
 #include <vtkXMLUnstructuredGridWriter.h>
 
 namespace post {
-	void export2vtk(const pre::UnstructedMesh& mesh,const std::vector<double>& u, const std::vector<double>& v, const std::vector<double>& F, const std::filesystem::path& filename)
+	void export2vtk(const pre::UnstructedMesh& mesh,const std::vector<double>& u, const std::vector<double>& v, const std::vector<double>& a, const std::vector<double>& F, const std::filesystem::path& filename)
 	{		
 		vtkNew<vtkUnstructuredGrid> unstructuredGrid;
 		
@@ -26,6 +26,7 @@ namespace post {
 		vtkNew<vtkPoints> points;
 		vtkNew<vtkDoubleArray> u_array;
 		vtkNew<vtkDoubleArray> v_array;
+		vtkNew<vtkDoubleArray> a_array;
 		vtkNew<vtkDoubleArray> F_array;
 
 		u_array->SetName("Displacement");
@@ -36,6 +37,10 @@ namespace post {
 		v_array->SetNumberOfComponents(3);
 		v_array->SetNumberOfTuples(mesh.nodes.size());
 
+		a_array->SetName("acceleration");
+		a_array->SetNumberOfComponents(3);
+		a_array->SetNumberOfTuples(mesh.nodes.size());
+
 		F_array->SetName("F");
 		F_array->SetNumberOfComponents(3);
 		F_array->SetNumberOfTuples(mesh.nodes.size());
@@ -45,9 +50,11 @@ namespace post {
 			points->InsertNextPoint(mesh.nodes[node][0], mesh.nodes[node][1], mesh.nodes[node][2]);
 			double tuple_u[3] = { u[3 * node], u[3 * node + 1], u[3 * node + 2] };
 			double tuple_v[3] = { v[3 * node], v[3 * node + 1], v[3 * node + 2] };
+			double tuple_a[3] = { a[3 * node], a[3 * node + 1], a[3 * node + 2] };
 			double tuple_F[3] = { F[3 * node], F[3 * node + 1], F[3 * node + 2] };
 			u_array->SetTuple(node, tuple_u);
 			v_array->SetTuple(node, tuple_v);
+			a_array->SetTuple(node, tuple_a);
 			F_array->SetTuple(node, tuple_F);
 		}
 	
@@ -55,6 +62,7 @@ namespace post {
 		unstructuredGrid->SetPoints(points);
 		unstructuredGrid->GetPointData()->AddArray(u_array);
 		unstructuredGrid->GetPointData()->AddArray(v_array);
+		unstructuredGrid->GetPointData()->AddArray(a_array);
 		unstructuredGrid->GetPointData()->AddArray(F_array);
 
 		// elems

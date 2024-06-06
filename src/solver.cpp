@@ -33,7 +33,7 @@ namespace solver{
 		std::cout << "min: " << min << std::endl;
 		// V_max * dt / dx = q
 		
-		// v_R - speed of Rayleigh's wave (faster than S-wave and P-wave)
+		// v_R - speed of Rayleigh's wave
 		// v_R ~= (beta * 0.87 + 0.12 * alpha) 
 		// dt = q * |dx| / v_R
 		
@@ -76,18 +76,22 @@ namespace solver{
 			std::vector<double> time_steps;
 			std::vector<int> int_steps;
 			double t = 0;
-			double dt = 1e-3;// 7.34246377e-05;// compute_dt(fcase) / 20;
+			double dt = 2e-3;// 7.34246377e-05;// compute_dt(fcase) / 20;
 			
-			
+			//applyconstraints(fcase, K, rows, cols, F);
 			// save init
-			post::export2vtk(fcase.computational_mesh, u, v, F, dir / std::string(filename + "_0.vtu"));
+			post::export2vtk(fcase.computational_mesh, u, v, a, F, dir / std::string(filename + "_0.vtu"));
 			std::cout << "dt = " << dt << std::endl; 
 
+			std::vector<int> load_cut;
+			//fill_load_cut(fcase, load_cut);
+			//update_absorption(fcase, F, v, u);
 			// if explicit
 			if(1){		
 				//updateLoads(fcase, F, dt);
 				std::vector<double> buf1(problem_size, 0);
-				for (int i = 1; i < 5000/*fcase.d_settings.max_iters*/; i++)
+				//800
+				for (int i = 1; i < 1000/*fcase.d_settings.max_iters*/; i++)
 				{	
 					// TODO: logger
 					std::cout << "Step " << i << " Time: " << t << std::endl;
@@ -95,20 +99,28 @@ namespace solver{
 					t += dt;
 					
 					
-					
+					updateLoads(fcase, F, t);
+					update_absorption(fcase, F, u, a, load_cut);
 
 					explicit_step(dt, fcase.dim, M, K, rows, cols, F, u_prev, u, u_next, buf1);
 					std::fill(v.begin(), v.end(), 0);
-					compute_velocity(dt, fcase.dim, v, u_prev, u, u_next);
-					compute_acceleration(dt, fcase.dim, a, u_prev, u, u_next);
+					std::fill(a.begin(), a.end(), 0);
 
-					updateLoads(fcase, F, t);
-					update_absorption(fcase, F, v, u);
-					updateconstraints(fcase, F);
-					updateconstraints(fcase, v);
 					updateconstraints(fcase, u_next);
 					updateconstraints(fcase, u);
 					updateconstraints(fcase, u_prev);
+
+					compute_velocity(dt, fcase.dim, v, u_prev, u, u_next);
+					compute_acceleration(dt, fcase.dim, a, u_prev, u, u_next);
+
+					
+					
+					//updateconstraints(fcase, F);
+					
+					//updateconstraints(fcase, v);
+					//updateconstraints(fcase, a);
+					
+					
 
 					double max_F = *std::max_element(F.begin(), F.end());
 					double min_F = *std::min_element(F.begin(), F.end());
@@ -118,17 +130,23 @@ namespace solver{
 
 					double max_v = *std::max_element(u_prev.begin(), u_prev.end());
 					double min_v = *std::min_element(u_prev.begin(), u_prev.end());
+					
+					double max_a = *std::max_element(a.begin(), a.end());
+					double min_a = *std::min_element(a.begin(), a.end());
 					if (1) 
 					{
 						std::cout << "max_u: " << max_u << " min_u: " << min_u << std::endl;
 						std::cout << "max_v: " << max_v << " min_v: " << min_v << std::endl;
+						std::cout << "max_a: " << max_a << " min_a: " << min_a << std::endl;
 						std::cout << "max_F: " << max_F << " min_F: " << min_F << std::endl;
 					}
-					if(i % 5 == 0){
+					//10
+//					if(i % 225 == 0 || i % 250 == 0 || i % 275 == 0){
+					if (i % 50 == 0) {
 						int_steps.push_back(i);
 						time_steps.push_back(t);
 						// TODO: resultants
-						post::export2vtk(fcase.computational_mesh, u, v, F, dir / std::string(filename + "_" + std::to_string(i) + ".vtu"));
+						post::export2vtk(fcase.computational_mesh, u, v, a, F, dir / std::string(filename + "_" + std::to_string(i) + ".vtu"));
 					}
 					u_prev = u;
 					u = u_next;
@@ -148,10 +166,10 @@ namespace solver{
 		}
 		else {
 			// constrants (Dirichlet BC)
-			applyconstraints(fcase, K, rows, cols, F);
+			applyconstraints(fcase, K, rows, cols, u);
 
 			algebra::solve_pardiso(fcase.dim, K, rows, cols, 1, F, u);
-			post::export2vtk(fcase.computational_mesh, u, u, F, dir / std::string(filename + ".vtu"));
+			post::export2vtk(fcase.computational_mesh, u, u, u, F, dir / std::string(filename + ".vtu"));
 		}
 	}
 }
