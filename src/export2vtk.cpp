@@ -3,6 +3,7 @@
 #include <fstream>
 #include <vector>
 
+
 #include <vtkPointData.h>
 #include <vtkDoubleArray.h>
 #include <vtkCellArray.h>
@@ -15,10 +16,10 @@
 #include <vtkXMLUnstructuredGridWriter.h>
 
 namespace post {
-	void export2vtk(const pre::UnstructedMesh& mesh,const std::vector<double>& u, const std::vector<double>& v, const std::vector<double>& a, const std::vector<double>& F, const std::filesystem::path& filename)
-	{		
+	void export2vtk(const pre::UnstructedMesh& mesh, const std::vector<double>& u, const std::vector<double>& v, const std::vector<double>& a, const std::vector<std::vector<double>>& eps, const std::vector<std::vector<double>>& sigma, const std::vector<double>& F, const std::filesystem::path& filename)
+	{
 		vtkNew<vtkUnstructuredGrid> unstructuredGrid;
-		
+
 		// for debug
 		vtkIndent ind;
 
@@ -27,19 +28,35 @@ namespace post {
 		vtkNew<vtkDoubleArray> u_array;
 		vtkNew<vtkDoubleArray> v_array;
 		vtkNew<vtkDoubleArray> a_array;
+
+		vtkNew<vtkDoubleArray> eps_array;
+		vtkNew<vtkDoubleArray> sigma_array;
+
 		vtkNew<vtkDoubleArray> F_array;
 
-		u_array->SetName("Displacement");
-		u_array->SetNumberOfComponents(3);
-		u_array->SetNumberOfTuples(mesh.nodes.size());
+		{
+			u_array->SetName("Displacement");
+			u_array->SetNumberOfComponents(3);
+			u_array->SetNumberOfTuples(mesh.nodes.size());
 
-		v_array->SetName("Velocity");
-		v_array->SetNumberOfComponents(3);
-		v_array->SetNumberOfTuples(mesh.nodes.size());
+			v_array->SetName("Velocity");
+			v_array->SetNumberOfComponents(3);
+			v_array->SetNumberOfTuples(mesh.nodes.size());
 
-		a_array->SetName("acceleration");
-		a_array->SetNumberOfComponents(3);
-		a_array->SetNumberOfTuples(mesh.nodes.size());
+			a_array->SetName("Acceleration");
+			a_array->SetNumberOfComponents(3);
+			a_array->SetNumberOfTuples(mesh.nodes.size());
+		}
+		{
+			eps_array->SetName("Strain");
+			eps_array->SetNumberOfComponents(6);
+			eps_array->SetNumberOfTuples(mesh.nodes.size());
+		
+			sigma_array->SetName("Stress");
+			sigma_array->SetNumberOfComponents(6);
+			sigma_array->SetNumberOfTuples(mesh.nodes.size());
+		}
+
 
 		F_array->SetName("F");
 		F_array->SetNumberOfComponents(3);
@@ -56,6 +73,12 @@ namespace post {
 			v_array->SetTuple(node, tuple_v);
 			a_array->SetTuple(node, tuple_a);
 			F_array->SetTuple(node, tuple_F);
+
+
+			double tuple_eps[6] = { eps[0][node], eps[1][node], eps[2][node], eps[3][node], eps[4][node], eps[5][node] };
+			double tuple_sigma[6] = { sigma[0][node], sigma[1][node], sigma[2][node], sigma[3][node], sigma[4][node], sigma[5][node] };
+			eps_array->SetTuple(node, tuple_eps);
+			sigma_array->SetTuple(node, tuple_sigma);
 		}
 	
 
@@ -64,6 +87,9 @@ namespace post {
 		unstructuredGrid->GetPointData()->AddArray(v_array);
 		unstructuredGrid->GetPointData()->AddArray(a_array);
 		unstructuredGrid->GetPointData()->AddArray(F_array);
+
+		unstructuredGrid->GetPointData()->AddArray(eps_array);
+		unstructuredGrid->GetPointData()->AddArray(sigma_array);
 
 		// elems
 		 
@@ -111,6 +137,7 @@ namespace post {
 		writer->Write();
 
 	}
+
 	void collect_steps(const std::filesystem::path& dir, const std::string& filename, const std::vector<int>& int_steps, const std::vector<double>& time_steps)
 	{
 		std::ofstream pvd_file;
@@ -119,14 +146,14 @@ namespace post {
 		pvd_file << "<?xml version=\"1.0\"?>\n";
 		pvd_file << " <VTKFile type=\"Collection\" version=\"0.1\">\n";
 		pvd_file << "  <Collection>\n";
-		pvd_file << "  <DataSet timestep= \"0\" step=\"0\" file=\""	<< std::string(filename + "_0.vtu\"/>\n");
+		pvd_file << "  <DataSet timestep= \"0\" step=\"0\" file=\""	<< std::string("results/" + filename + "_0.vtu\"/>\n");
 		for (int i = 1; i < time_steps.size(); i++) 
 		{
 			pvd_file << "  <DataSet timestep=\""
 				<< time_steps[i] << "\" step=\""
 				<< i
 				<< "\" file=\""
-				<< std::string(filename + "_" + std::to_string(int_steps[i]) + ".vtu\"/>\n");
+				<< std::string("results/" + filename + "_" + std::to_string(int_steps[i]) + ".vtu\"/>\n");
 
 		};
 		pvd_file << "  </Collection>\n";

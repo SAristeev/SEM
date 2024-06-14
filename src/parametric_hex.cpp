@@ -3,6 +3,7 @@
 #include "num_types.h"
 #include "gll.h"
 
+#include <cassert>
 #include <vector>
 #include <unordered_map>
 

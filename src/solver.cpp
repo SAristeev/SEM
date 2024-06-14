@@ -30,95 +30,106 @@ namespace solver{
 		double alpha = std::sqrt((material.lambda + 2 * material.mu) / material.density);
 		double beta = std::sqrt(material.mu / material.density);
 
-		std::cout << "min: " << min << std::endl;
+		
 		// V_max * dt / dx = q
 		
 		// v_R - speed of Rayleigh's wave
 		// v_R ~= (beta * 0.87 + 0.12 * alpha) 
 		// dt = q * |dx| / v_R
-		
+
 		double v_R = (beta * 0.87 + 0.12 * alpha);
-		//double v_R = beta * (0.862 + 1.14 * material.nu) / (1 + material.nu);
 		double v_max = std::max(std::max(alpha, beta), v_R);
 		
-		//return fcase.d_settings.courant * min * min / v_max;
-		return 1e-3;
+		return fcase.d_settings.courant * min / v_max;
+		
 	}
 	void start_problem(const fc& fcase, std::filesystem::path dir, std::string filename) 
 	{
-		int problem_size = fcase.dim * fcase.computational_mesh.nodes.size();
+		int dim = fcase.dim;
+		int nodes_count = fcase.computational_mesh.nodes.size();
+		
+
+		std::vector<std::vector<matd>> B;
+		std::vector<std::vector<mat3>> J;
+		computeJacobians(fcase, J, B);
+
 		// stiffness matrix
 		std::vector<int> rows;
 		std::vector<int> cols;
 		std::vector<double> K;
-		buildStiffnessMatrixStruct(fcase.computational_mesh, rows, cols);
-		buildStiffnessMatrix(fcase, K, rows, cols);
 		
+		buildStiffnessMatrixStruct(fcase.computational_mesh, rows, cols);
+		buildStiffnessMatrix(fcase, K, rows, cols, J, B);
+		
+		std::vector<double> C;
+		buildResultantMatrix(fcase, C, J, B);
+
 		// loads (Neumann BC)
 		std::vector<double> F;
 		createLoads(fcase, F);
+		
+		std::vector<double> u(dim * nodes_count, 0);
 
-		std::vector<double> u(problem_size, 0);
+		std::vector<std::vector<double>> eps(6); // xx yy zz xy yz zx
+		std::vector<std::vector<double>> sigma(6); // xx yy zz xy yz zx
+
+		for (int i = 0; i < 6; i++)
+		{
+			eps[i].resize(nodes_count);
+			sigma[i].resize(nodes_count);
+		}
+
+		std::filesystem::create_directory(dir / "results");
+		
+		
 		if (fcase.type == eDynamic) 
 		{
 			std::cout << "Start Dynamic" << std::endl;
-			std::vector<double> u_prev(problem_size, 0);
-			std::vector<double> u_next(problem_size, 0);
-			std::vector<double> v(problem_size, 0);
-			std::vector<double> a(problem_size, 0);
+			std::vector<double> u_prev(dim * nodes_count, 0);
+			std::vector<double> u_next(dim * nodes_count, 0);
+			std::vector<double> v(dim * nodes_count, 0);
+			std::vector<double> a(dim * nodes_count, 0);
+
+			
 			// specific for Spectral elements
-			std::vector<double> M(problem_size, 0);
-			buildMassMatrix(fcase, M);
-			//double max_M = *std::max_element(M.begin(), M.end());
-			//double min_M = *std::min_element(M.begin(), M.end());
-			//std::cout << "max_u: " << max_M << " min_u: " << min_M << std::endl;
+			std::vector<double> M;
+			buildMassMatrix(fcase, M, J, B);
+
 			// TODO compute dt from Courant Number
 			std::vector<double> time_steps;
 			std::vector<int> int_steps;
 			double t = 0;
-			double dt = 2e-3;// 7.34246377e-05;// compute_dt(fcase) / 20;
-			
-			//applyconstraints(fcase, K, rows, cols, F);
+			//double dt = 5e-6;// compute_dt(fcase);
+			double dt = 2.5e-6;
+			double maxTime = 0.05;
+			int max_iters = static_cast<int>(maxTime / dt);
 			// save init
-			post::export2vtk(fcase.computational_mesh, u, v, a, F, dir / std::string(filename + "_0.vtu"));
+			
+			post::export2vtk(fcase.computational_mesh, u, v, a, eps, sigma, F, dir / "results" / std::string(filename + "_0.vtu"));
 			std::cout << "dt = " << dt << std::endl; 
 
-			std::vector<int> load_cut;
-			//fill_load_cut(fcase, load_cut);
-			//update_absorption(fcase, F, v, u);
-			// if explicit
+			
 			if(1){		
-				//updateLoads(fcase, F, dt);
-				std::vector<double> buf1(problem_size, 0);
-				//800
-				for (int i = 1; i < 1000/*fcase.d_settings.max_iters*/; i++)
+			
+				std::vector<double> buf1(dim * nodes_count, 0);
+				for (int i = 1; i <= max_iters + 1; i++)
 				{	
 					// TODO: logger
 					std::cout << "Step " << i << " Time: " << t << std::endl;
 
 					t += dt;
 					
-					
 					updateLoads(fcase, F, t);
-					update_absorption(fcase, F, u, a, load_cut);
+					//update_absorption(fcase, F, u, a, load_cut);
 
 					explicit_step(dt, fcase.dim, M, K, rows, cols, F, u_prev, u, u_next, buf1);
-					std::fill(v.begin(), v.end(), 0);
-					std::fill(a.begin(), a.end(), 0);
-
+					
 					updateconstraints(fcase, u_next);
 					updateconstraints(fcase, u);
 					updateconstraints(fcase, u_prev);
 
 					compute_velocity(dt, fcase.dim, v, u_prev, u, u_next);
 					compute_acceleration(dt, fcase.dim, a, u_prev, u, u_next);
-
-					
-					
-					//updateconstraints(fcase, F);
-					
-					//updateconstraints(fcase, v);
-					//updateconstraints(fcase, a);
 					
 					
 
@@ -140,22 +151,16 @@ namespace solver{
 						std::cout << "max_a: " << max_a << " min_a: " << min_a << std::endl;
 						std::cout << "max_F: " << max_F << " min_F: " << min_F << std::endl;
 					}
-					//10
-//					if(i % 225 == 0 || i % 250 == 0 || i % 275 == 0){
-					if (i % 50 == 0) {
+
+					if (i % 100 == 0) {
 						int_steps.push_back(i);
 						time_steps.push_back(t);
-						// TODO: resultants
-						post::export2vtk(fcase.computational_mesh, u, v, a, F, dir / std::string(filename + "_" + std::to_string(i) + ".vtu"));
+						
+						resultants(fcase, C, eps, sigma, u, J, B);
+						post::export2vtk(fcase.computational_mesh, u, v, a, eps, sigma, F, dir / "results" / std::string(filename + "_" + std::to_string(i) + ".vtu"));
 					}
 					u_prev = u;
 					u = u_next;
-					
-					if (t > 100 * fcase.d_settings.max_time) 
-					{
-						std::cout << "Max time reached" << std::endl;
-						break;
-					}
 				}
 			}
 			else 
@@ -169,7 +174,9 @@ namespace solver{
 			applyconstraints(fcase, K, rows, cols, u);
 
 			algebra::solve_pardiso(fcase.dim, K, rows, cols, 1, F, u);
-			post::export2vtk(fcase.computational_mesh, u, u, u, F, dir / std::string(filename + ".vtu"));
+
+			resultants(fcase, C, eps, sigma, u, J, B);
+			post::export2vtk(fcase.computational_mesh, u, u, u, eps, sigma, F, dir / "results" / std::string(filename + ".vtu"));
 		}
 	}
 }
