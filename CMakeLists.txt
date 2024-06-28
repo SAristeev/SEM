@@ -4,7 +4,7 @@ project(SEM VERSION 1.0.0 LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 20)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-include_directories("external")
+add_subdirectory("external")
 
 find_package(VTK REQUIRED)
 
