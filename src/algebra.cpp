@@ -1,11 +1,83 @@
 #include "algebra.h"
 
+#include <iostream>
+
 #include <vector>
+
+#define AMGCL_NO_BOOST
+
+#include <amgcl/preconditioner/schur_pressure_correction.hpp>
+#include <amgcl/make_solver.hpp>
+#include <amgcl/make_block_solver.hpp>
+#include <amgcl/preconditioner/schur_pressure_correction.hpp>
+#include <amgcl/value_type/eigen.hpp>
+#include <amgcl/value_type/static_matrix.hpp>
+#include <amgcl/backend/builtin.hpp>
+#include <amgcl/adapter/crs_tuple.hpp>
+#include <amgcl/make_solver.hpp>
+#include <amgcl/amg.hpp>
+#include <amgcl/coarsening/smoothed_aggregation.hpp>
+#include <amgcl/coarsening/ruge_stuben.hpp>
+#include <amgcl/relaxation/gauss_seidel.hpp>
+#include <amgcl/relaxation/spai1.hpp>
+#include <amgcl/relaxation/ilu0.hpp>
+
+#include <amgcl/relaxation/as_preconditioner.hpp>
+
+
+#include <amgcl/solver/preonly.hpp>
+#include <amgcl/solver/fgmres.hpp>
+#include <amgcl/solver/cg.hpp>
+#include <amgcl/solver/bicgstab.hpp>
+
+
+#include <amgcl/profiler.hpp>
+#include <amgcl/io/mm.hpp>
 
 #include <mkl.h>
 
 namespace algebra 
 {
+	void bsr2csr(const int& blocksize, const std::vector<double>& bsr_A, const std::vector<int>& bsr_rows, const std::vector<int>& bsr_cols,
+		std::vector<double>& csr_A, std::vector<int>& csr_rows, std::vector<int>& csr_cols) 
+	{
+		csr_A.resize(bsr_A.size());
+		csr_rows.resize(blocksize * (bsr_rows.size() - 1) + 1);
+		csr_cols.resize(blocksize * blocksize * bsr_cols.size());
+
+		for (int row = 0; row < bsr_rows.size() - 1; row++)
+		{
+			int csr_row = blocksize * (bsr_rows[row + 1] - bsr_rows[row]);
+			for (int bl = 0; bl < blocksize; bl++)
+			{
+				csr_rows[3 * row + bl + 1] = csr_rows[3 * row + bl] + csr_row;
+			}
+		}
+		
+		int block_row = 0;
+		for (int block = 0; block < bsr_cols.size(); block++)
+		{
+			int block_col = blocksize * bsr_cols[block];
+			
+			if (block >= bsr_rows[block_row + 1])
+			{
+				block_row++;
+			}
+			int bsr_shift = block - bsr_rows[block_row];
+			for (int loc_row = 0; loc_row < blocksize; loc_row++)
+			{
+				int csr_row_shift = csr_rows[blocksize * block_row + loc_row];
+				for (int loc_col = 0; loc_col < blocksize; loc_col++)
+				{
+					int tmp = 0;
+					csr_cols[csr_row_shift + blocksize * bsr_shift + loc_col] = block_col + loc_col;
+					csr_A[csr_row_shift + blocksize * bsr_shift + loc_col] = bsr_A[blocksize * blocksize * block + blocksize * loc_row + loc_col];
+				}
+			}
+			
+		}
+	}
+
 	void solve_pardiso(const int& blocksize, const std::vector<double>& A, const std::vector<int>& rows, const std::vector<int>& cols, const int& nrhs, const std::vector<double>& b, std::vector<double>& x) 
 	{
 		int _iparm[64];
@@ -107,5 +179,59 @@ namespace algebra
 			(void*)h_ValsA, (MKL_INT*)h_RowsA, (MKL_INT*)h_ColsA,
 			(MKL_INT*)&idum, (MKL_INT*)&nrhs, (MKL_INT*)&_iparm[0], (MKL_INT*)&msglvl, (void*)h_b, (void*)h_x, (MKL_INT*)&error);
 		mkl_free_buffers();
+	}
+
+	void solve_amgcl(const int& blocksize, const std::vector<double>& A, const std::vector<int>& rows, const std::vector<int>& cols, const int& nrhs, const std::vector<double>& b, std::vector<double>& x) 
+	{
+		assert(blocksize == 1);
+		int n = rows.size() - 1;
+		auto Matrix = std::tie(n, rows, cols, A);
+
+		typedef amgcl::backend::builtin<double> Backend;
+		typedef amgcl::make_solver<
+			amgcl::amg<
+			Backend,
+			amgcl::coarsening::ruge_stuben,
+			amgcl::relaxation::gauss_seidel
+			>,
+			amgcl::solver::cg<Backend>
+		> Solver;
+		
+		Solver::params prm;
+		//prm.solver.M = 100;
+		prm.precond.npre = 4;
+		prm.precond.npost = 4;
+		//prm.precond.
+		//prm.precond.ncycle = 4;
+
+		prm.solver.tol = 1e-9;
+		prm.solver.maxiter = 10000;
+		prm.solver.verbose = true;
+
+		// The profiler:
+		amgcl::profiler<> prof("SEM");
+		// Initialize the solver with the system matrix:
+		prof.tic("setup");
+		Solver solve(Matrix, prm);
+		prof.toc("setup");
+
+		// Show the mini-report on the constructed solver:
+		std::cout << solve << std::endl;
+
+
+		// Solve the system with the zero initial approximation:
+		int iters;
+		double error;
+
+		prof.tic("solve");
+		std::tie(iters, error) = solve(Matrix, b, x);
+		prof.toc("solve");
+
+		// Output the number of iterations, the relative error,
+		// and the profiling data:
+		std::cout << "Iters: " << iters << std::endl
+			<< "Error: " << error << std::endl
+			<< prof << std::endl;
+
 	}
 }

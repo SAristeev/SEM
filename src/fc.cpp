@@ -6,7 +6,7 @@
 #include <algorithm>	
 
 #include <base64.h>
-#include <json/json.hpp>
+#include <nlohmann/json.hpp>
 
 namespace pre {
 	static boundary_indexes bound;
@@ -85,12 +85,12 @@ namespace pre {
 								std::vector<vec3> p_o = {p1_o, p2_o, p3_o, p4_o };
 								get_face(original_mesh.order[elem_id], i, tmp);
 
-								vec3 p1_с = computational_mesh.nodes[computational_mesh.elems[computational_mesh.elem_shifts[elem_id] + tmp[0]]];
-								vec3 p2_с = computational_mesh.nodes[computational_mesh.elems[computational_mesh.elem_shifts[elem_id] + tmp[1]]];
-								vec3 p3_с = computational_mesh.nodes[computational_mesh.elems[computational_mesh.elem_shifts[elem_id] + tmp[2]]];
-								vec3 p4_с = computational_mesh.nodes[computational_mesh.elems[computational_mesh.elem_shifts[elem_id] + tmp[3]]];
+								vec3 p1_пїЅ = computational_mesh.nodes[computational_mesh.elems[computational_mesh.elem_shifts[elem_id] + tmp[0]]];
+								vec3 p2_пїЅ = computational_mesh.nodes[computational_mesh.elems[computational_mesh.elem_shifts[elem_id] + tmp[1]]];
+								vec3 p3_пїЅ = computational_mesh.nodes[computational_mesh.elems[computational_mesh.elem_shifts[elem_id] + tmp[2]]];
+								vec3 p4_пїЅ = computational_mesh.nodes[computational_mesh.elems[computational_mesh.elem_shifts[elem_id] + tmp[3]]];
 								
-								std::vector<vec3> p_c = { p1_с, p2_с, p3_с, p4_с };
+								std::vector<vec3> p_c = { p1_пїЅ, p2_пїЅ, p3_пїЅ, p4_пїЅ };
 								std::vector<int> mask(4, -1);
 								for (int j = 0; j < 4; j++) 
 								{
@@ -502,7 +502,7 @@ namespace pre {
 						std::vector<double>& parameters = bc.types[i].param;
 						auto parse = [&](const std::string& input) {
 
-							// Извлекаем коэффициент
+							// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 							std::stringstream preBracketStream(input);
 							preBracketStream >> bc.data[i];
 

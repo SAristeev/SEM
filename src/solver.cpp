@@ -1,3 +1,4 @@
+#include "debug_helper.h"
 #include "solver.h"
 #include "fem.h"
 #include "export2vtk.h"
@@ -172,8 +173,14 @@ namespace solver{
 		else {
 			// constrants (Dirichlet BC)
 			applyconstraints(fcase, K, rows, cols, u);
-
-			algebra::solve_pardiso(fcase.dim, K, rows, cols, 1, F, u);
+			// stiffness matrix
+			std::vector<int> csr_rows;
+			std::vector<int> csr_cols;
+			std::vector<double> csr_K;
+			algebra::bsr2csr(fcase.dim, K, rows, cols, csr_K, csr_rows, csr_cols);
+			//debug_helper::print_bsr("C:/WD/octave/bsr.txt", 3, K, rows, cols);
+			//debug_helper::print_bsr("C:/WD/octave/csr.txt", 1, csr_K, csr_rows, csr_cols);
+			algebra::solve_amgcl(1, csr_K, csr_rows, csr_cols, 1, F, u);
 
 			resultants(fcase, C, eps, sigma, u, J, B);
 			post::export2vtk(fcase.computational_mesh, u, u, u, eps, sigma, F, dir / "results" / std::string(filename + ".vtu"));
