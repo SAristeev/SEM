@@ -17,6 +17,8 @@ namespace amgcl { amgcl::profiler<> prof("SEM"); }
 
 #include <amgcl/amg.hpp>
 #include <amgcl/preconditioner/dummy.hpp>
+
+#include <amgcl/coarsening/aggregation.hpp>
 #include <amgcl/coarsening/smoothed_aggregation.hpp>
 #include <amgcl/coarsening/ruge_stuben.hpp>
 
@@ -31,6 +33,9 @@ namespace amgcl { amgcl::profiler<> prof("SEM"); }
 #include <amgcl/solver/preonly.hpp>
 #include <amgcl/solver/cg.hpp>
 
+
+#include<Eigen/Core>
+#include<Eigen/Dense>
 
 #include <mkl.h>
 
@@ -76,6 +81,79 @@ namespace algebra
 		}
 	}
 
+
+	std::pair<double, double> Lanczos(const int& blocksize, const std::vector<double>& A, const std::vector<int>& rows, const std::vector<int>& cols)
+	{
+		assert(blocksize == 1);
+
+		int n = rows.size() - 1;
+		std::vector<double> q_prev(n, 0.0);
+		std::vector<double> q(n, 1.0 / std::sqrt(n));
+		std::vector<double> w(n);
+		double alpha = 0, beta = 0;
+
+		int nnz = rows[n];
+		const char trans = 'n';
+
+		const int maxiter = 15;
+		using emat = Eigen::Matrix<double, maxiter, maxiter>;
+		emat T = emat::Zero();
+
+		for (int iter = 0; iter < maxiter; iter++) 
+		{
+			if (iter != 0) 
+			{
+				T(iter, iter - 1) = beta;
+			}
+			mkl_cspblas_dbsrgemv(&trans, &n, &blocksize, A.data(), rows.data(), cols.data(), q.data(), w.data());
+
+			alpha = 0;
+#pragma omp parallel for
+			for (int i = 0; i < n; i++) 
+			{
+				alpha += q[i] * w[i];
+			}
+
+#pragma omp parallel for
+			for (int i = 0; i < n; i++)
+			{
+				w[i] -= alpha * q[i] + beta * q_prev[i];
+			}
+
+			T(iter, iter) = alpha;
+
+			beta = 0;
+#pragma omp parallel for
+			for (int i = 0; i < n; i++)
+			{
+				beta += w[i] * w[i];
+			}
+			beta = std::sqrt(beta);
+
+			if (beta < 1e-15)
+				break;
+
+#pragma omp parallel for
+			for (int i = 0; i < n; i++)
+			{
+				q_prev[i] = q[i];
+				q[i] = w[i]/beta;
+			}
+
+			if (iter != maxiter - 1)
+			{
+				T(iter, iter + 1) = beta;
+			}
+		}
+
+		Eigen::SelfAdjointEigenSolver<emat> eigensolver(T);
+		if (eigensolver.info() != Eigen::Success) abort();
+		
+		std::vector<double> eig(eigensolver.eigenvalues().data(), eigensolver.eigenvalues().data() + maxiter);
+		std::sort(eig.begin(), eig.end());
+		
+		return { eig.front(), eig.back() };
+	}
 	void solve_pardiso(const int& blocksize, const std::vector<double>& A, const std::vector<int>& rows, const std::vector<int>& cols, const int& nrhs, const std::vector<double>& b, std::vector<double>& x) 
 	{
 		int _iparm[64];
@@ -182,6 +260,11 @@ namespace algebra
 	void solve_amgcl(const int& blocksize, const std::vector<double>& A, const std::vector<int>& rows, const std::vector<int>& cols, const int& nrhs, const std::vector<double>& b, std::vector<double>& x) 
 	{
 		assert(blocksize == 1);
+
+		std::pair<double, double> eig = Lanczos(blocksize, A, rows, cols);
+		
+		std::cout << "max(lambda) = " << std::scientific << eig.second << std::endl;
+		std::cout << "min(lambda) = " << std::scientific << eig.first << std::endl;
 		int n = rows.size() - 1;
 		auto Matrix = std::tie(n, rows, cols, A);
 
@@ -190,17 +273,26 @@ namespace algebra
 			amgcl::amg<
 			Backend,
 			amgcl::coarsening::ruge_stuben,
-			amgcl::relaxation::gauss_seidel
+			amgcl::relaxation::chebyshev
 			>
 			//amgcl::preconditioner::dummy<Backend>
 			,
 			amgcl::solver::cg<Backend>
 		> Solver;
-		
+	
 		Solver::params prm;
 		
-		prm.precond.npre = 4;
-		prm.precond.npost = 4;
+		prm.precond.max_levels = 1;
+		prm.precond.direct_coarse = true;
+
+		prm.precond.relax.myself_eig = true;
+		prm.precond.relax.hi = 2 * eig.second;
+		prm.precond.relax.lo = 1. / 30.;//eig.first;
+		prm.precond.relax.degree = 2;
+
+		prm.precond.pre_cycles = 2;
+		prm.precond.npre = 2;
+		prm.precond.npost = 2;
 		
 
 		prm.solver.tol = 1e-9;
