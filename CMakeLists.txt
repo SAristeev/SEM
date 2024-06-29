@@ -4,7 +4,9 @@ project(SEM VERSION 1.0.0 LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 20)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-add_subdirectory("external")
+include_directories("external/amgcl")
+include_directories("external/json/single_include")
+include_directories("external/eigen")
 
 find_package(VTK REQUIRED)
 

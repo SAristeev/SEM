@@ -1,3 +1,9 @@
 [submodule "external/amgcl"]
 	path = external/amgcl
 	url = https://github.com/ddemidov/amgcl
+[submodule "external/json"]
+	path = external/json
+	url = https://github.com/nlohmann/json
+[submodule "external/eigen"]
+	path = external/eigen
+	url = https://gitlab.com/libeigen/eigen
