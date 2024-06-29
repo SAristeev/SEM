@@ -5,34 +5,32 @@
 #include <vector>
 
 #define AMGCL_NO_BOOST
-
-#include <amgcl/preconditioner/schur_pressure_correction.hpp>
-#include <amgcl/make_solver.hpp>
-#include <amgcl/make_block_solver.hpp>
-#include <amgcl/preconditioner/schur_pressure_correction.hpp>
-#include <amgcl/value_type/eigen.hpp>
-#include <amgcl/value_type/static_matrix.hpp>
-#include <amgcl/backend/builtin.hpp>
-#include <amgcl/adapter/crs_tuple.hpp>
-#include <amgcl/make_solver.hpp>
-#include <amgcl/amg.hpp>
-#include <amgcl/coarsening/smoothed_aggregation.hpp>
-#include <amgcl/coarsening/ruge_stuben.hpp>
-#include <amgcl/relaxation/gauss_seidel.hpp>
-#include <amgcl/relaxation/spai1.hpp>
-#include <amgcl/relaxation/ilu0.hpp>
-
-#include <amgcl/relaxation/as_preconditioner.hpp>
-
-
-#include <amgcl/solver/preonly.hpp>
-#include <amgcl/solver/fgmres.hpp>
-#include <amgcl/solver/cg.hpp>
-#include <amgcl/solver/bicgstab.hpp>
-
+#define AMGCL_PROFILING
 
 #include <amgcl/profiler.hpp>
-#include <amgcl/io/mm.hpp>
+namespace amgcl { amgcl::profiler<> prof("SEM"); }
+#include <amgcl/util.hpp>
+
+#include <amgcl/make_solver.hpp>
+#include <amgcl/backend/builtin.hpp>
+#include <amgcl/adapter/crs_tuple.hpp>
+
+#include <amgcl/amg.hpp>
+#include <amgcl/preconditioner/dummy.hpp>
+#include <amgcl/coarsening/smoothed_aggregation.hpp>
+#include <amgcl/coarsening/ruge_stuben.hpp>
+
+
+#include <amgcl/relaxation/as_preconditioner.hpp>
+#include <amgcl/relaxation/damped_jacobi.hpp>
+#include <amgcl/relaxation/gauss_seidel.hpp>
+#include <amgcl/relaxation/chebyshev.hpp>
+#include <amgcl/relaxation/spai1.hpp>
+#include <amgcl/relaxation/spai0.hpp>
+
+#include <amgcl/solver/preonly.hpp>
+#include <amgcl/solver/cg.hpp>
+
 
 #include <mkl.h>
 
@@ -193,27 +191,28 @@ namespace algebra
 			Backend,
 			amgcl::coarsening::ruge_stuben,
 			amgcl::relaxation::gauss_seidel
-			>,
+			>
+			//amgcl::preconditioner::dummy<Backend>
+			,
 			amgcl::solver::cg<Backend>
 		> Solver;
 		
 		Solver::params prm;
-		//prm.solver.M = 100;
+		
 		prm.precond.npre = 4;
 		prm.precond.npost = 4;
-		//prm.precond.
-		//prm.precond.ncycle = 4;
+		
 
 		prm.solver.tol = 1e-9;
 		prm.solver.maxiter = 10000;
 		prm.solver.verbose = true;
 
 		// The profiler:
-		amgcl::profiler<> prof("SEM");
+		//amgcl::profiler<> prof("SEM");
 		// Initialize the solver with the system matrix:
-		prof.tic("setup");
+		//amgcl::prof.tic("setup");
 		Solver solve(Matrix, prm);
-		prof.toc("setup");
+		//amgcl::prof.toc("setup");
 
 		// Show the mini-report on the constructed solver:
 		std::cout << solve << std::endl;
@@ -223,15 +222,15 @@ namespace algebra
 		int iters;
 		double error;
 
-		prof.tic("solve");
+		//amgcl::prof.tic("solve");
 		std::tie(iters, error) = solve(Matrix, b, x);
-		prof.toc("solve");
+		//amgcl::prof.toc("solve");
 
 		// Output the number of iterations, the relative error,
 		// and the profiling data:
 		std::cout << "Iters: " << iters << std::endl
 			<< "Error: " << error << std::endl
-			<< prof << std::endl;
+			<< amgcl::prof << std::endl;
 
 	}
 }
